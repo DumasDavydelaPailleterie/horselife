@@ -81,7 +81,10 @@ function start() {
 
 function board() {
   const i = game.info();
-  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>`;
+  const stdBadge = i.std
+    ? `<small style="color:var(--bad);font-weight:700">${i.stdName}</small>`
+    : (i.immune ? '<small style="color:var(--good);font-weight:700">免疫</small>' : '');
+  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>${stdBadge}`;
   $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
   $('bd-age').textContent = i.age;
   $('bd-year').textContent = i.year;
@@ -168,7 +171,7 @@ function renderLog() {
     html += effectLine(e.applied);
     if (e.detail && e.detail.length) {
       html += `<div class="det">${e.detail.map((d) =>
-        d.includes('成功') && !d.includes('沒有下文')
+        d.includes('→ 成功')
           ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
     }
     card.innerHTML = html;
@@ -193,6 +196,7 @@ function renderAction() {
     case 'dice': return renderDice(p);
     case 'event': return renderEvent(p);
     case 'activity': return renderActivity(p);
+    case 'special': return renderSpecial(p);
     case 'midterm': return renderConfirm('期中考', '知道了，繼續');
     case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
     case 'accident': return renderConfirm('意外事件', '認了，繼續');
@@ -330,6 +334,23 @@ function renderActivity(p) {
     act.appendChild(b);
   }
 
+  /* 帶病時的就醫選項 */
+  if (p.cure?.available) {
+    const b = document.createElement('button');
+    b.className = 'btn warn';
+    b.innerHTML = `🏥 就醫治療 ${p.cure.name}<small>` +
+      `治癒率 ${p.cure.rate}%　消耗 ${p.cure.cost} 場次　不治療每學期都會扣能力</small>`;
+    b.onclick = () => { game.submit({ cure: true }); refresh(); };
+    act.appendChild(b);
+  } else if (p.cure?.incurable) {
+    const note = document.createElement('div');
+    note.style.cssText =
+      'font-size:12px;color:var(--bad);background:#2a1414;border:1px solid #6a3c3c;' +
+      'border-radius:8px;padding:6px 10px;margin-top:6px';
+    note.textContent = `${p.cure.name}：無法治癒，每學期都會持續扣能力與風評。`;
+    act.appendChild(note);
+  }
+
   p.list.forEach((a) => {
     const b = document.createElement('button');
     b.className = 'btn';
@@ -353,6 +374,41 @@ function renderActivity(p) {
   act.appendChild(skip);
 }
 
+/* ---------- 特殊角色的出手決策 ---------- */
+
+function renderSpecial(p) {
+  const act = $('act');
+  const g = p.girl;
+  const diffN = { low: '低', mid: '中', high: '高' }[g.diff] || g.diff;
+
+  act.innerHTML = actTitle(
+    `這一位不太一樣　${p.remaining > 0 ? `（今晚還有 ${p.remaining} 位）` : ''}`);
+
+  const box = document.createElement('div');
+  box.style.cssText =
+    'background:#0d2115;border:1px solid var(--edge);border-radius:8px;' +
+    'padding:10px 12px;margin-bottom:4px';
+  box.innerHTML =
+    `<div style="font-weight:900;font-size:16px">${g.name}` +
+    `<span style="color:var(--amber);font-size:13px;font-weight:700;margin-left:8px">${g.title}</span></div>` +
+    `<div style="font-size:13px;color:var(--dim);margin-top:5px;line-height:1.7">${g.desc}</div>` +
+    `<div style="font-family:var(--mono);font-size:12px;color:var(--chalk);margin-top:7px">` +
+    `難度 ${diffN}　成功率 ${p.rate}%</div>`;
+  act.appendChild(box);
+
+  const go = document.createElement('button');
+  go.className = 'btn main';
+  go.innerHTML = `出手<small>成功率 ${p.rate}%　結果好壞看她是誰</small>`;
+  go.onclick = () => { game.submit({ go: true }); refresh(); };
+  act.appendChild(go);
+
+  const no = document.createElement('button');
+  no.className = 'btn';
+  no.innerHTML = '收手<small>不算人斬，但也不會有後果。她今晚之後不會再出現</small>';
+  no.onclick = () => { game.submit({ go: false }); refresh(); };
+  act.appendChild(no);
+}
+
 /* ---------- 結局 ---------- */
 
 function renderEnding(e) {
@@ -361,9 +417,25 @@ function renderEnding(e) {
 
   const card = document.createElement('div');
   card.className = 'card gold';
+
+  /* 歷任名單:特殊角色標色,一般角色維持原色 */
+  const TIER_COLOR = {
+    positive: 'var(--good)', negative: 'var(--bad)', fatal: 'var(--bad)',
+  };
   const names = e.conquered.length
-    ? e.conquered.join('、')
+    ? e.conquered.map((c) => {
+      const col = TIER_COLOR[c.tier];
+      const label = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
+      return col ? `<span style="color:${col};font-weight:700">${label}</span>` : label;
+    }).join('、')
     : '（一位都沒有）';
+
+  const stdRow = e.std
+    ? `<tr><td>健康狀況</td><td style="color:var(--bad)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
+    : `<tr><td>健康狀況</td><td>${e.stdCured > 0 ? `曾感染，已治癒 ${e.stdCured} 次` : '沒有問題'}</td></tr>`;
+
+  const fatalRow = e.fatalGirl
+    ? `<tr><td>登出原因</td><td style="color:var(--bad)">${e.fatalGirl}</td></tr>` : '';
 
   card.innerHTML = `
     <div class="end-hero">
@@ -383,6 +455,8 @@ function renderEnding(e) {
       <tr><td>社交活動</td><td>${e.stats.activitiesDone} 場</td></tr>
       <tr><td>校內風評</td><td>${e.rep}</td></tr>
       <tr><td>老學長</td><td>${e.mentorFound ? '找到了' : '始終沒遇到'}</td></tr>
+      ${stdRow}
+      ${fatalRow}
     </table>
     <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
   `;

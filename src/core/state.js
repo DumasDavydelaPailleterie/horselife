@@ -2,6 +2,7 @@
 
 import { CONFIG } from '../data/config.js';
 import { DEPTS } from '../data/depts.js';
+import { GIRLS_BY_TIER } from '../data/girls.js';
 import { clamp } from '../rng.js';
 
 /* 生成潛力天花板:體力/學力/肌力隨機打亂後依序給上限範圍;技巧力另計
@@ -27,6 +28,16 @@ function makePotential(rng, dept) {
   pot.str = Math.max(pot.str, dept.examStr[last] + buf);
 
   return pot;
+}
+
+/* 開場時決定哪些登出級女角這一局不存在。
+ * 這是讓「2% 名冊佔比」在實際遊玩中也感覺得到稀有的關鍵。 */
+function rollExcluded(rng) {
+  const out = [];
+  for (const g of GIRLS_BY_TIER.fatal) {
+    if (!rng.chance(CONFIG.fatalInPlayChance * 100)) out.push(g.id);
+  }
+  return out;
 }
 
 export function newState({ name, dept, rng }) {
@@ -58,9 +69,19 @@ export function newState({ name, dept, rng }) {
     sklFrac: 0,                 /* 技巧力的小數累積(失敗給 0.5,滿 1 才進位) */
 
     kills: 0,                   /* 生涯人斬 */
-    conquered: [],              /* 已攻略對象姓名(避免重複計數) */
+    conquered: [],              /* 已攻略對象 {name,title,tier,semester} */
+    metIds: [],                 /* 已接觸過的名冊角色 id(同一局不再出現) */
+    /* 這一局不存在的女角(開場時抽掉的登出級角色)。
+     * 見 config.fatalInPlayChance 的說明。 */
+    excludedIds: rollExcluded(rng),
     rep: 0,                     /* 校內風評,越高越難攻略 */
     risk: 0,                    /* 當學期意外風險累積 */
+
+    std: null,                  /* 目前感染的性病:null / 'syphilis' / 'hiv' */
+    stdSemesters: 0,            /* 已帶病幾個學期 */
+    stdCured: 0,                /* 治癒過幾次 */
+    /* 跟校醫室的護理師交流過就永久免疫,之後不會再被任何女角感染 */
+    immune: false,
 
     slots: 0,                   /* 當學期剩餘社交活動場次 */
     bonusSlots: 0,              /* 骰子兌換與事件卡給的額外場次 */
@@ -79,10 +100,12 @@ export function newState({ name, dept, rng }) {
       attempts: 0,
       successes: 0,
       activitiesDone: 0,
+      fatalGirl: null,          /* 導致登出的女角姓名 */
     },
 
     over: false,
-    overReason: null,           /* 'expelled' 退學 / 'graduated' 畢業 */
+    /* 'graduated' 畢業 / 'expelled' 退學 / 'fatal' 玩太大出事 */
+    overReason: null,
     ending: null,
   };
 }

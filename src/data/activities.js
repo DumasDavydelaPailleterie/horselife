@@ -38,6 +38,20 @@ export const ACTIVITIES = [
     desc: '重訓區的鏡子前面永遠有人在找角度。',
   },
   {
+    /* 校醫室:流量最低但完全沒有風險與門檻的場所。
+     * 這裡藏著護理師,跟她交流過之後就永久免疫性病(見 girls.js 的 p11)。
+     * 設計上是一條「用場次換保險」的路線——來這裡幾乎斬不到人,
+     * 但可以把整局的性病威脅一次解除。 */
+    id: 'act_clinic', name: '校醫室', enc: 1,
+    req: null, diff: 'mid', risk: 'none',
+    mentorDept: null,
+    /* 專屬場所:只有明確指定在這裡出現的角色會登場(也就是護理師),
+     * 一般角色不會混進來稀釋她。沒有這個設定的話,護理師會被 63 位
+     * 一般角色淹沒,玩家要來十幾次才碰得到她,這條路線就形同不存在。 */
+    exclusive: true,
+    desc: '走廊盡頭那間，門上貼著「進入請敲門」。裡面很安靜，有消毒水的味道。',
+  },
+  {
     id: 'act_club_night', name: '夜店', enc: 5,
     req: { str: 35 }, diff: 'high', risk: 'high',
     mentorDept: null,

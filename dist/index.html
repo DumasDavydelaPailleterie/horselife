@@ -243,6 +243,44 @@ const CONFIG = {
   riskFromActivity: true,   /* 活動的風險係數是否累積 */
   activityRiskValue: { none: 0, low: 2, mid: 5, high: 10, extreme: 15 },
 
+  /* ---------- 女角名冊 ---------- */
+  /* 每次邂逅抽人時的權重。特殊角色的權重刻意壓低,
+   * 讓她們在名冊上雖然佔 37%,實際遇到的頻率遠低於此——
+   * 否則每一場活動都有一堆特殊事件,反而失去「今天不一樣」的感覺。
+   * 這是調整特殊角色出現頻率的唯一入口。 */
+  girlWeights: { normal: 1, positive: 0.5, negative: 0.4, fatal: 0.5 },
+  /* 名冊抽完(全部攻略過)時,退回隨機生成姓名,避免遊戲卡住 */
+  girlFallbackToRandom: true,
+  /* 每一局開場時,每位登出級女角有多少機率「在場」。
+   *
+   * 為什麼需要這個:名冊上登出級只佔 2%,但一局玩下來會接觸一百多位對象,
+   * 而名冊只有 100 位——只要玩家持續去高風險場所,那兩位幾乎必定會被抽到,
+   * 導致實際登出率高達四成,跟「2%」的設計意圖完全不符。
+   * 這道閘門讓她們真的稀有:多數局根本不存在,遇到的那一局才是真的倒楣。 */
+  fatalInPlayChance: 0.15,
+
+  /* ---------- 性病系統 ----------
+   * 設計參考原著 YaKyoLife 的湯米約翰手術機制:
+   * 累積傷害 + 可選擇治療或硬撐 + 有一種是不可逆的。 */
+  std: {
+    syphilis: {
+      name: '梅毒', curable: true,
+      /* 每學期結算時的損失 */
+      perSemester: { sta: 3, str: 2 },
+      repPerSemester: 2,
+      /* 治療:消耗社交場次,有成功率 */
+      cureSlots: 1, cureRate: 75,
+      cureCost: { sta: 2 },
+      desc: '每學期扣體力與肌力，風評持續惡化。可以就醫治療。',
+    },
+    hiv: {
+      name: '愛滋', curable: false,
+      perSemester: { sta: 4, str: 2, int: 2 },
+      repPerSemester: 3,
+      desc: '無法治癒。每學期持續扣三項能力，風評持續惡化。',
+    },
+  },
+
   /* ---------- 事件卡 ---------- */
   eventsPerPhase: { H1: 1, MID: 1, H2: 2, FIN: 0, VAC: 2 },
   /* 三段應對:成功率與幅度 */
@@ -437,6 +475,20 @@ const ACTIVITIES = [
     req: { str: 30 }, diff: 'mid', risk: 'low',
     mentorDept: null,
     desc: '重訓區的鏡子前面永遠有人在找角度。',
+  },
+  {
+    /* 校醫室:流量最低但完全沒有風險與門檻的場所。
+     * 這裡藏著護理師,跟她交流過之後就永久免疫性病(見 girls.js 的 p11)。
+     * 設計上是一條「用場次換保險」的路線——來這裡幾乎斬不到人,
+     * 但可以把整局的性病威脅一次解除。 */
+    id: 'act_clinic', name: '校醫室', enc: 1,
+    req: null, diff: 'mid', risk: 'none',
+    mentorDept: null,
+    /* 專屬場所:只有明確指定在這裡出現的角色會登場(也就是護理師),
+     * 一般角色不會混進來稀釋她。沒有這個設定的話,護理師會被 63 位
+     * 一般角色淹沒,玩家要來十幾次才碰得到她,這條路線就形同不存在。 */
+    exclusive: true,
+    desc: '走廊盡頭那間，門上貼著「進入請敲門」。裡面很安靜，有消毒水的味道。',
   },
   {
     id: 'act_club_night', name: '夜店', enc: 5,
@@ -909,6 +961,7 @@ const EVENT_COUNT = EVENTS.length;
 
 
 
+
 /* 生成潛力天花板:體力/學力/肌力隨機打亂後依序給上限範圍;技巧力另計
  *
  * 重要:天賦分佈雖然隨機,但學力與肌力的上限必須保證能達到畢業門檻,
@@ -932,6 +985,16 @@ function makePotential(rng, dept) {
   pot.str = Math.max(pot.str, dept.examStr[last] + buf);
 
   return pot;
+}
+
+/* 開場時決定哪些登出級女角這一局不存在。
+ * 這是讓「2% 名冊佔比」在實際遊玩中也感覺得到稀有的關鍵。 */
+function rollExcluded(rng) {
+  const out = [];
+  for (const g of GIRLS_BY_TIER.fatal) {
+    if (!rng.chance(CONFIG.fatalInPlayChance * 100)) out.push(g.id);
+  }
+  return out;
 }
 
 function newState({ name, dept, rng }) {
@@ -963,9 +1026,19 @@ function newState({ name, dept, rng }) {
     sklFrac: 0,                 /* 技巧力的小數累積(失敗給 0.5,滿 1 才進位) */
 
     kills: 0,                   /* 生涯人斬 */
-    conquered: [],              /* 已攻略對象姓名(避免重複計數) */
+    conquered: [],              /* 已攻略對象 {name,title,tier,semester} */
+    metIds: [],                 /* 已接觸過的名冊角色 id(同一局不再出現) */
+    /* 這一局不存在的女角(開場時抽掉的登出級角色)。
+     * 見 config.fatalInPlayChance 的說明。 */
+    excludedIds: rollExcluded(rng),
     rep: 0,                     /* 校內風評,越高越難攻略 */
     risk: 0,                    /* 當學期意外風險累積 */
+
+    std: null,                  /* 目前感染的性病:null / 'syphilis' / 'hiv' */
+    stdSemesters: 0,            /* 已帶病幾個學期 */
+    stdCured: 0,                /* 治癒過幾次 */
+    /* 跟校醫室的護理師交流過就永久免疫,之後不會再被任何女角感染 */
+    immune: false,
 
     slots: 0,                   /* 當學期剩餘社交活動場次 */
     bonusSlots: 0,              /* 骰子兌換與事件卡給的額外場次 */
@@ -984,10 +1057,12 @@ function newState({ name, dept, rng }) {
       attempts: 0,
       successes: 0,
       activitiesDone: 0,
+      fatalGirl: null,          /* 導致登出的女角姓名 */
     },
 
     over: false,
-    overReason: null,           /* 'expelled' 退學 / 'graduated' 畢業 */
+    /* 'graduated' 畢業 / 'expelled' 退學 / 'fatal' 玩太大出事 */
+    overReason: null,
     ending: null,
   };
 }
@@ -1064,6 +1139,7 @@ function midtermWarning(S) {
 
 
 
+
 /* 計算對某位對象的成功率(百分比) */
 function conquestRate(S, difficulty) {
   const w = CONFIG.conquestWeights;
@@ -1075,35 +1151,110 @@ function conquestRate(S, difficulty) {
   return clamp(raw, CONFIG.conquestRateMin, CONFIG.conquestRateMax);
 }
 
+/* 取得對某位對象的實際成功率。
+ * 少數角色(目前只有校醫室的護理師)有固定成功率,不套用一般公式,
+ * 因為她們的門檻設計在「玩家有沒有想到要去那個地方」,而不是能力值高低。 */
+function rateFor(S, target) {
+  if (typeof target?.fixedRate === 'number') return target.fixedRate;
+  return conquestRate(S, target?.difficulty ?? target?.diff);
+}
+
+/* 套用女角的特殊效果。回傳套用明細與是否觸發登出 */
+function applyGirlEffect(S, girl) {
+  const eff = girl.eff;
+  if (!eff) return { applied: [], fatal: null, std: null };
+
+  const applied = [];
+  let fatal = null;
+  let std = null;
+  let immuneBlocked = false;   /* 因為已免疫而擋掉的感染 */
+
+  for (const [key, v] of Object.entries(eff)) {
+    switch (key) {
+      case 'sta': case 'int': case 'str': {
+        const actual = addAb(S, key, v);
+        applied.push({ key, amount: v, actual });
+        break;
+      }
+      case 'skl': {
+        const actual = addSkl(S, v);
+        applied.push({ key, amount: v, actual });
+        break;
+      }
+      case 'enc':  S.encBonus += v;  applied.push({ key, amount: v, actual: v }); break;
+      case 'slot': S.bonusSlots += v; applied.push({ key, amount: v, actual: v }); break;
+      case 'risk': S.risk += v;      applied.push({ key, amount: v, actual: v }); break;
+      case 'rep':
+        S.rep = Math.max(0, S.rep + v);
+        applied.push({ key, amount: v, actual: v });
+        break;
+      case 'std': {
+        const r = infect(S, v);
+        std = r.changed ? r : null;
+        if (r.changed) applied.push({ key: 'std', amount: v, actual: v });
+        else if (r.immune) immuneBlocked = true;
+        break;
+      }
+      case 'immune': {
+        const r = grantImmunity(S);
+        if (r.changed) applied.push({ key: 'immune', amount: 1, actual: 1 });
+        break;
+      }
+      case 'fatal':
+        fatal = v;
+        break;
+      default:
+        throw new Error(`女角效果使用了未知的鍵:${key}`);
+    }
+  }
+  return { applied, fatal, std, immuneBlocked };
+}
+
 /* 對一位對象進行一次攻略判定並套用結果 */
 function attemptConquest(S, target, rng) {
-  const rate = conquestRate(S, target.difficulty);
+  const rate = rateFor(S, target);
   const success = rng.chance(rate);
 
   S.stats.attempts++;
+  /* 記錄已經接觸過的名冊角色,同一局不會再遇到 */
+  if (target.id && !S.metIds.includes(target.id)) S.metIds.push(target.id);
 
-  if (success) {
-    S.stats.successes++;
-
-    /* 同一位對象只計數一次 */
-    const isNew = !S.conquered.includes(target.name);
-    if (isNew) {
-      S.kills++;
-      S.conquered.push(target.name);
-      S.rep += CONFIG.repPerConquest;
-    }
-
-    /* 技巧力成長:超過軟上限後減半 */
-    const gain =
-      S.ab.skl >= CONFIG.sklSoftCap ? CONFIG.sklOnSuccess / 2 : CONFIG.sklOnSuccess;
-    addSkl(S, gain);
-
-    return { success: true, rate, target, counted: isNew, sklGain: gain };
+  if (!success) {
+    /* 失敗也給少量經驗,避免開局死鎖 */
+    addSkl(S, CONFIG.sklOnFail);
+    return {
+      success: false, rate, target, counted: false,
+      sklGain: CONFIG.sklOnFail, applied: [], fatal: null, std: null,
+      immuneBlocked: false,
+    };
   }
 
-  /* 失敗也給少量經驗,避免開局死鎖 */
-  addSkl(S, CONFIG.sklOnFail);
-  return { success: false, rate, target, counted: false, sklGain: CONFIG.sklOnFail };
+  S.stats.successes++;
+
+  /* 同一位對象只計數一次 */
+  const isNew = !S.conquered.some((c) => c.name === target.name);
+  if (isNew) {
+    S.kills++;
+    S.conquered.push({
+      name: target.name, title: target.title || '', tier: target.tier || 'normal',
+      semester: S.semester,
+    });
+    S.rep += CONFIG.repPerConquest;
+  }
+
+  /* 技巧力成長:超過軟上限後減半 */
+  const gain =
+    S.ab.skl >= CONFIG.sklSoftCap ? CONFIG.sklOnSuccess / 2 : CONFIG.sklOnSuccess;
+  addSkl(S, gain);
+
+  /* 女角的特殊效果 */
+  const { applied, fatal, std, immuneBlocked } = applyGirlEffect(S, target);
+  if (fatal) S.stats.fatalGirl = target.name;
+
+  return {
+    success: true, rate, target, counted: isNew,
+    sklGain: gain, applied, fatal, std, immuneBlocked,
+  };
 }
 
 /* ================================================================
@@ -1139,26 +1290,24 @@ function listActivities(S) {
   });
 }
 
-/* 生成本場活動邂逅到的對象 */
+/* 生成本場活動邂逅到的對象。從女角名冊抽人,難度以角色自身為準 */
 function makeTargets(act, S, rng) {
-  const n = act.enc + S.encBonus;
+  const n = Math.max(0, act.enc + S.encBonus);
   S.encBonus = 0;                      /* 邂逅加成一次用完 */
-  const targets = [];
-  for (let i = 0; i < n; i++) {
-    /* 難度以活動基準為主,加入隨機浮動:有機會遇到更好或更差的對象 */
-    let difficulty = act.diff;
-    const roll = rng.next();
-    if (roll < 0.15) {
-      difficulty = act.diff === 'high' ? 'mid' : 'low';
-    } else if (roll > 0.85) {
-      difficulty = act.diff === 'low' ? 'mid' : 'high';
-    }
-    targets.push({ name: makeName(rng), difficulty });
-  }
-  return targets;
+  return drawGirls(S, act.id, n, act.diff, rng);
 }
 
-/* 執行一場活動:生成對象、逐一攻略判定、累積風險 */
+/* 執行一場活動。
+ *
+ * 一般對象(名冊上的 63 位路人與隨機生成的)會立刻批次結算——這是遊戲的吞吐量主體。
+ * 但有稱號的特殊角色不自動結算,而是被挑出來交給玩家逐一決定要不要出手。
+ *
+ * 這個設計是刻意的:如果特殊角色也自動結算,那麼「夜店常客」「來者不拒」
+ * 這類稱號就只是裝飾,玩家看到的時候事情已經發生了,無從判斷也無從迴避;
+ * 而且因為名冊會被接觸完,帶病與登出級的角色幾乎必定會遇到,
+ * 導致實際的登出率遠高於名冊上的 2%。
+ * 改成玩家決定之後,稱號就成為真正的情報,風險也回到玩家自己的選擇上。
+ */
 function runActivity(S, actId, rng) {
   const act = ACTIVITIES.find((a) => a.id === actId);
   if (!act) throw new Error(`未知活動:${actId}`);
@@ -1170,16 +1319,18 @@ function runActivity(S, actId, rng) {
 
   S.stats.activitiesDone++;
 
-  /* 風險累積 */
   if (CONFIG.riskFromActivity) {
     S.risk += CONFIG.activityRiskValue[act.risk] || 0;
   }
 
   const targets = makeTargets(act, S, rng);
-  const results = targets.map((t) => attemptConquest(S, t, rng));
+  const specials = targets.filter((t) => t.tier !== 'normal');
+  const ordinary = targets.filter((t) => t.tier === 'normal');
+
+  const results = ordinary.map((t) => attemptConquest(S, t, rng));
   const gained = results.filter((r) => r.counted).length;
 
-  return { activity: act, results, gained };
+  return { activity: act, results, gained, specials };
 }
 
 /* ================================================================
@@ -1339,7 +1490,7 @@ function endOfSemesterDecay(S) {
    src/core/ending.js
    ================================================================ */
 /* 結局判定 — 依規格草案 8.2 節的雙軸設計
- * 主軸:人斬總數(六級);副軸:畢業狀態
+ * 主軸:人斬總數(六級);副軸:結束方式(畢業 / 退學 / 玩太大出事)
  */
 
 
@@ -1351,33 +1502,38 @@ function tierOf(kills) {
   return CONFIG.endingTiers[CONFIG.endingTiers.length - 1];
 }
 
-const GRAD_TEXT = {
-  graduated: '你順利拿到了畢業證書。',
-  expelled: '你的學生證在第 %s 個學期就被收回了。',
+/* fatal 的語意是「從大學生活登出」——住院、被家裡關起來、學籍中斷,不是死亡 */
+const SUFFIX = {
+  graduated: '順利畢業',
+  expelled: '中途退學',
+  fatal: '提前登出',
 };
 
 function makeEnding(S) {
   const tier = tierOf(S.kills);
-  const graduated = S.overReason === 'graduated';
+  const reason = S.overReason;
+  const graduated = reason === 'graduated';
   /* 畢業時 semester 已經被推到第 9 個(超出總數才觸發畢業),
    * 顯示用的「就讀學期數」要夾回總學期數,否則會出現「9 / 8」。 */
   const semestersPlayed = Math.min(S.semester, CONFIG.totalSemesters);
 
-  let headline;
+  let gradLine;
   if (graduated) {
-    headline = `${tier.name}・順利畢業`;
+    gradLine = '你順利拿到了畢業證書。';
+  } else if (reason === 'fatal') {
+    gradLine = S.fatalReason
+      || '你玩得太大了，而且對方不是你可以碰的人。你的大學生活在這裡按下了停止鍵。';
   } else {
-    headline = `${tier.name}・中途退學`;
+    gradLine = `你的學生證在第 ${semestersPlayed} 個學期就被收回了。`;
   }
 
-  const gradLine = graduated
-    ? GRAD_TEXT.graduated
-    : GRAD_TEXT.expelled.replace('%s', String(semestersPlayed));
+  const stdCfg = S.std ? CONFIG.std[S.std] : null;
 
   return {
     tier: tier.key,
     tierName: tier.name,
-    headline,
+    headline: `${tier.name}・${SUFFIX[reason] || '結束'}`,
+    reason,
     graduated,
     kills: S.kills,
     semestersPlayed,
@@ -1385,6 +1541,11 @@ function makeEnding(S) {
     rep: S.rep,
     conquered: S.conquered.slice(),
     mentorFound: S.mentorFound,
+    std: S.std,
+    stdName: stdCfg ? stdCfg.name : null,
+    stdSemesters: S.stdSemesters || 0,
+    stdCured: S.stdCured || 0,
+    fatalGirl: S.stats.fatalGirl || null,
     gradLine,
     stats: {
       ...S.stats,
@@ -1426,6 +1587,8 @@ function makeEnding(S) {
 
 
 
+
+
 function createGame({ name, dept, seed }) {
   const rng = createRng(seed);
   const S = newState({ name, dept, rng });
@@ -1433,6 +1596,9 @@ function createGame({ name, dept, seed }) {
   /* 內部佇列:當前階段還要處理幾件事 */
   let queue = [];
   let pending = null;
+  /* 一場活動裡遇到的特殊角色,等玩家逐一決定 */
+  let specialQueue = [];
+  let lastMentor = null;
 
   const game = {
     get state() { return S; },
@@ -1578,6 +1744,13 @@ function createGame({ name, dept, seed }) {
           S.kills - S.stats.killsBySemester.reduce((a, b) => a + b, 0),
         );
         endOfSemesterDecay(S);
+        /* 帶病的話,每學期結算時扣能力與風評 */
+        const p = applyStdPenalty(S);
+        if (p) {
+          push('bad', `病情｜${p.name}`,
+            `已經帶著 ${p.name} 度過 ${p.semesters} 個學期，身體撐不住了。`,
+            { applied: p.applied });
+        }
         step();
         return;
       }
@@ -1603,6 +1776,7 @@ function createGame({ name, dept, seed }) {
           sklGain: CONFIG.mentorSklPerSession,
           cost: CONFIG.mentorSlotCost,
         },
+        cure: cureOption(),
       };
       return;
     }
@@ -1614,6 +1788,58 @@ function createGame({ name, dept, seed }) {
       list: listActivities(S),
       slotsLeft: S.slots,
       mentor: { available: false },
+      cure: cureOption(),
+    };
+  }
+
+  /* 宣告取得性病免疫。狀態本身在 applyGirlEffect 已經設好了 */
+  function announceImmunity(girl) {
+    push('gold', '獲得免疫｜性病',
+      `${girl.name} 把該講的都講清楚了，也把該給的都給你了。`
+      + `\n從現在起，不論你去哪裡、遇到誰，都不會再被感染。`);
+  }
+
+  /* 特殊角色佇列:一場活動裡遇到的有稱號角色,逐一交給玩家決定 */
+  function nextSpecial() {
+    if (specialQueue.length === 0) { afterActivity(); return; }
+    const girl = specialQueue.shift();
+    pending = {
+      type: 'special',
+      /* 給畫面的資料刻意不含 tier 與 eff——玩家只能靠稱號與情境判斷,
+       * 這正是這個機制的重點:資訊不完全下的風險決策 */
+      girl: {
+        name: girl.name, title: girl.title, desc: girl.desc, diff: girl.diff,
+      },
+      rate: Math.round(rateFor(S, girl)),
+      remaining: specialQueue.length,
+      /* 引擎自己結算時要用的完整資料 */
+      girlFull: girl,
+    };
+  }
+
+  /* 活動結束後的收尾:還有場次就繼續,沒有就進下一個階段 */
+  function afterActivity() {
+    if (S.slots > 0 || (lastMentor && S.mentorSessionsLeft > 0)) {
+      lastMentor = null;
+      openActivity();
+    } else {
+      lastMentor = null;
+      step();
+    }
+  }
+
+  /* 就醫選項:只有帶著可治癒的病、而且場次還夠的時候才出現 */
+  function cureOption() {
+    const info = stdInfo(S);
+    if (!info) return { available: false };
+    if (!info.curable) {
+      return { available: false, incurable: true, name: info.name };
+    }
+    return {
+      available: canCure(S),
+      name: info.name,
+      rate: info.cureRate,
+      cost: info.cureSlots,
     };
   }
 
@@ -1708,25 +1934,86 @@ function createGame({ name, dept, seed }) {
           return;
         }
 
+        if (action.cure) {
+          const res = attemptCure(S, rng);
+          if (res.cured) {
+            push('good', `就醫｜${res.name}`,
+              `療程結束，複檢結果是陰性。你把那張報告收進抽屜最裡面。`,
+              { applied: res.applied });
+          } else {
+            push('bad', `就醫｜${res.name}`,
+              `療程沒有奏效（成功率 ${res.rate}%），醫生要你下次再來一趟。`,
+              { applied: res.applied });
+          }
+          openActivity();
+          return;
+        }
+
         const r = runActivity(S, action.actId, rng);
         S.slots--;
 
-        /* 活動內容敘述 */
-        const lines = r.results.map((x) =>
-          `${x.target.name}（成功率 ${Math.round(x.rate)}%）${x.success ? '→ 成功' : '→ 沒有下文'}`);
-        push(r.gained > 0 ? 'good' : 'info',
-          `社交活動｜${r.activity.name}`,
-          `接觸了 ${r.results.length} 位對象，成功 ${r.gained} 位。`,
-          { detail: lines, gained: r.gained });
+        /* 一般對象的批次結果 */
+        if (r.results.length > 0) {
+          const lines = r.results.map((x) =>
+            `${x.target.name}　成功率 ${Math.round(x.rate)}%　${x.success ? '→ 成功' : '→ 沒有下文'}`);
+          push(r.gained > 0 ? 'good' : 'info',
+            `社交活動｜${r.activity.name}`,
+            `接觸了 ${r.results.length} 位對象，成功 ${r.gained} 位。`,
+            { detail: lines, gained: r.gained });
+        } else {
+          push('info', `社交活動｜${r.activity.name}`, '這一場沒有遇到什麼普通的對象。');
+        }
 
         /* 老學長發現判定(在活動之後,才有「活動中遇到他」的感覺) */
-        const m = checkMentor(action.actId);
+        lastMentor = checkMentor(action.actId);
 
-        if (S.slots > 0 || (m && S.mentorSessionsLeft > 0)) {
-          openActivity();
-        } else {
-          step();
+        /* 有稱號的特殊角色排成佇列,交給玩家逐一決定 */
+        specialQueue = r.specials.slice();
+        if (specialQueue.length > 0) { nextSpecial(); return; }
+
+        afterActivity();
+        return;
+      }
+
+      case 'special': {
+        /* action: { go: true } 出手 / { go: false } 收手 */
+        const t = pending.girlFull;
+        if (!action.go) {
+          if (t.id && !S.metIds.includes(t.id)) S.metIds.push(t.id);
+          push('info', `${t.name}｜${t.title}`,
+            `${t.desc}\n你想了一下，決定今天先不要。`);
+          nextSpecial();
+          return;
         }
+
+        const x = attemptConquest(S, t, rng);
+        const kind = x.success
+          ? (t.tier === 'positive' ? 'gold' : 'bad')
+          : 'info';
+        const body = x.success
+          ? `${t.desc}\n${t.hit}`
+          : `${t.desc}\n你出手了，但沒有成功（成功率 ${Math.round(x.rate)}%）。`;
+        push(kind, `${t.name}｜${t.title}`, body, { applied: x.applied });
+
+        if (x.std) {
+          push('bad', `確診｜${x.std.info.name}`, x.std.info.desc);
+        }
+        if (x.immuneBlocked) {
+          push('good', '沒事',
+            '如果不是校醫室那位護理師當初講的那些，這次大概就中了。');
+        }
+        /* 免疫的取得條件是攻略成功(人斬 +1),收手與出手失敗都不算。
+         * 效果本身已由 applyGirlEffect 套用,這裡只負責宣告。 */
+        if (x.applied.some((a) => a.key === 'immune')) announceImmunity(t);
+
+        /* 登出級女角:立刻結束,不再處理任何後續 */
+        if (x.fatal) {
+          S.fatalReason = x.fatal;
+          finish('fatal');
+          return;
+        }
+
+        nextSpecial();
         return;
       }
 
@@ -1744,8 +2031,10 @@ function createGame({ name, dept, seed }) {
     S.over = true;
     S.overReason = reason;
     S.ending = makeEnding(S);
+    /* fatal = 從大學生活登出(住院、被家裡帶回去關起來、學籍中斷) */
+    const titles = { graduated: '畢業', expelled: '退學', fatal: '人生登出' };
     push(reason === 'graduated' ? 'gold' : 'bad',
-      reason === 'graduated' ? '畢業' : '退學',
+      titles[reason] || '結束',
       `${S.ending.gradLine} 生涯人斬 ${S.kills} 人，評價：${S.ending.tierName}。`);
     pending = { type: 'gameover', ending: S.ending };
   }
@@ -1761,6 +2050,8 @@ function createGame({ name, dept, seed }) {
     exam: S.semester <= CONFIG.totalSemesters ? examThreshold(S.dept, S.semester) : null,
     accidentChance: accidentChance(S),
     mentorFound: S.mentorFound, mentorSessionsLeft: S.mentorSessionsLeft,
+    std: S.std, stdName: S.std ? CONFIG.std[S.std].name : null,
+    stdSemesters: S.stdSemesters || 0, immune: !!S.immune,
     over: S.over,
   });
 
@@ -1855,7 +2146,10 @@ function start() {
 
 function board() {
   const i = game.info();
-  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>`;
+  const stdBadge = i.std
+    ? `<small style="color:var(--bad);font-weight:700">${i.stdName}</small>`
+    : (i.immune ? '<small style="color:var(--good);font-weight:700">免疫</small>' : '');
+  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>${stdBadge}`;
   $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
   $('bd-age').textContent = i.age;
   $('bd-year').textContent = i.year;
@@ -1942,7 +2236,7 @@ function renderLog() {
     html += effectLine(e.applied);
     if (e.detail && e.detail.length) {
       html += `<div class="det">${e.detail.map((d) =>
-        d.includes('成功') && !d.includes('沒有下文')
+        d.includes('→ 成功')
           ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
     }
     card.innerHTML = html;
@@ -1967,6 +2261,7 @@ function renderAction() {
     case 'dice': return renderDice(p);
     case 'event': return renderEvent(p);
     case 'activity': return renderActivity(p);
+    case 'special': return renderSpecial(p);
     case 'midterm': return renderConfirm('期中考', '知道了，繼續');
     case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
     case 'accident': return renderConfirm('意外事件', '認了，繼續');
@@ -2104,6 +2399,23 @@ function renderActivity(p) {
     act.appendChild(b);
   }
 
+  /* 帶病時的就醫選項 */
+  if (p.cure?.available) {
+    const b = document.createElement('button');
+    b.className = 'btn warn';
+    b.innerHTML = `🏥 就醫治療 ${p.cure.name}<small>` +
+      `治癒率 ${p.cure.rate}%　消耗 ${p.cure.cost} 場次　不治療每學期都會扣能力</small>`;
+    b.onclick = () => { game.submit({ cure: true }); refresh(); };
+    act.appendChild(b);
+  } else if (p.cure?.incurable) {
+    const note = document.createElement('div');
+    note.style.cssText =
+      'font-size:12px;color:var(--bad);background:#2a1414;border:1px solid #6a3c3c;' +
+      'border-radius:8px;padding:6px 10px;margin-top:6px';
+    note.textContent = `${p.cure.name}：無法治癒，每學期都會持續扣能力與風評。`;
+    act.appendChild(note);
+  }
+
   p.list.forEach((a) => {
     const b = document.createElement('button');
     b.className = 'btn';
@@ -2127,6 +2439,41 @@ function renderActivity(p) {
   act.appendChild(skip);
 }
 
+/* ---------- 特殊角色的出手決策 ---------- */
+
+function renderSpecial(p) {
+  const act = $('act');
+  const g = p.girl;
+  const diffN = { low: '低', mid: '中', high: '高' }[g.diff] || g.diff;
+
+  act.innerHTML = actTitle(
+    `這一位不太一樣　${p.remaining > 0 ? `（今晚還有 ${p.remaining} 位）` : ''}`);
+
+  const box = document.createElement('div');
+  box.style.cssText =
+    'background:#0d2115;border:1px solid var(--edge);border-radius:8px;' +
+    'padding:10px 12px;margin-bottom:4px';
+  box.innerHTML =
+    `<div style="font-weight:900;font-size:16px">${g.name}` +
+    `<span style="color:var(--amber);font-size:13px;font-weight:700;margin-left:8px">${g.title}</span></div>` +
+    `<div style="font-size:13px;color:var(--dim);margin-top:5px;line-height:1.7">${g.desc}</div>` +
+    `<div style="font-family:var(--mono);font-size:12px;color:var(--chalk);margin-top:7px">` +
+    `難度 ${diffN}　成功率 ${p.rate}%</div>`;
+  act.appendChild(box);
+
+  const go = document.createElement('button');
+  go.className = 'btn main';
+  go.innerHTML = `出手<small>成功率 ${p.rate}%　結果好壞看她是誰</small>`;
+  go.onclick = () => { game.submit({ go: true }); refresh(); };
+  act.appendChild(go);
+
+  const no = document.createElement('button');
+  no.className = 'btn';
+  no.innerHTML = '收手<small>不算人斬，但也不會有後果。她今晚之後不會再出現</small>';
+  no.onclick = () => { game.submit({ go: false }); refresh(); };
+  act.appendChild(no);
+}
+
 /* ---------- 結局 ---------- */
 
 function renderEnding(e) {
@@ -2135,9 +2482,25 @@ function renderEnding(e) {
 
   const card = document.createElement('div');
   card.className = 'card gold';
+
+  /* 歷任名單:特殊角色標色,一般角色維持原色 */
+  const TIER_COLOR = {
+    positive: 'var(--good)', negative: 'var(--bad)', fatal: 'var(--bad)',
+  };
   const names = e.conquered.length
-    ? e.conquered.join('、')
+    ? e.conquered.map((c) => {
+      const col = TIER_COLOR[c.tier];
+      const label = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
+      return col ? `<span style="color:${col};font-weight:700">${label}</span>` : label;
+    }).join('、')
     : '（一位都沒有）';
+
+  const stdRow = e.std
+    ? `<tr><td>健康狀況</td><td style="color:var(--bad)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
+    : `<tr><td>健康狀況</td><td>${e.stdCured > 0 ? `曾感染，已治癒 ${e.stdCured} 次` : '沒有問題'}</td></tr>`;
+
+  const fatalRow = e.fatalGirl
+    ? `<tr><td>登出原因</td><td style="color:var(--bad)">${e.fatalGirl}</td></tr>` : '';
 
   card.innerHTML = `
     <div class="end-hero">
@@ -2157,6 +2520,8 @@ function renderEnding(e) {
       <tr><td>社交活動</td><td>${e.stats.activitiesDone} 場</td></tr>
       <tr><td>校內風評</td><td>${e.rep}</td></tr>
       <tr><td>老學長</td><td>${e.mentorFound ? '找到了' : '始終沒遇到'}</td></tr>
+      ${stdRow}
+      ${fatalRow}
     </table>
     <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
   `;

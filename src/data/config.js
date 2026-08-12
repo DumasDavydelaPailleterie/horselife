@@ -41,6 +41,44 @@ export const CONFIG = {
   riskFromActivity: true,   /* 活動的風險係數是否累積 */
   activityRiskValue: { none: 0, low: 2, mid: 5, high: 10, extreme: 15 },
 
+  /* ---------- 女角名冊 ---------- */
+  /* 每次邂逅抽人時的權重。特殊角色的權重刻意壓低,
+   * 讓她們在名冊上雖然佔 37%,實際遇到的頻率遠低於此——
+   * 否則每一場活動都有一堆特殊事件,反而失去「今天不一樣」的感覺。
+   * 這是調整特殊角色出現頻率的唯一入口。 */
+  girlWeights: { normal: 1, positive: 0.5, negative: 0.4, fatal: 0.5 },
+  /* 名冊抽完(全部攻略過)時,退回隨機生成姓名,避免遊戲卡住 */
+  girlFallbackToRandom: true,
+  /* 每一局開場時,每位登出級女角有多少機率「在場」。
+   *
+   * 為什麼需要這個:名冊上登出級只佔 2%,但一局玩下來會接觸一百多位對象,
+   * 而名冊只有 100 位——只要玩家持續去高風險場所,那兩位幾乎必定會被抽到,
+   * 導致實際登出率高達四成,跟「2%」的設計意圖完全不符。
+   * 這道閘門讓她們真的稀有:多數局根本不存在,遇到的那一局才是真的倒楣。 */
+  fatalInPlayChance: 0.15,
+
+  /* ---------- 性病系統 ----------
+   * 設計參考原著 YaKyoLife 的湯米約翰手術機制:
+   * 累積傷害 + 可選擇治療或硬撐 + 有一種是不可逆的。 */
+  std: {
+    syphilis: {
+      name: '梅毒', curable: true,
+      /* 每學期結算時的損失 */
+      perSemester: { sta: 3, str: 2 },
+      repPerSemester: 2,
+      /* 治療:消耗社交場次,有成功率 */
+      cureSlots: 1, cureRate: 75,
+      cureCost: { sta: 2 },
+      desc: '每學期扣體力與肌力，風評持續惡化。可以就醫治療。',
+    },
+    hiv: {
+      name: '愛滋', curable: false,
+      perSemester: { sta: 4, str: 2, int: 2 },
+      repPerSemester: 3,
+      desc: '無法治癒。每學期持續扣三項能力，風評持續惡化。',
+    },
+  },
+
   /* ---------- 事件卡 ---------- */
   eventsPerPhase: { H1: 1, MID: 1, H2: 2, FIN: 0, VAC: 2 },
   /* 三段應對:成功率與幅度 */

@@ -73,7 +73,8 @@ function chooseActivity(game, pending, policy) {
 }
 
 /* 執行一整局 */
-function playOne({ dept, seed, dicePolicy = 'balanced', actPolicy = 'default', eventPolicy = 'normal' }) {
+function playOne({ dept, seed, dicePolicy = 'balanced', actPolicy = 'default',
+                  eventPolicy = 'normal', specialPolicy = 'accept' }) {
   const game = createGame({ name: '模擬員', dept, seed });
   const dice = DICE_POLICIES[dicePolicy];
   let steps = 0;
@@ -91,11 +92,18 @@ function playOne({ dept, seed, dicePolicy = 'balanced', actPolicy = 'default', e
         break;
       case 'activity': {
         if (p.mentor?.available) { game.submit({ mentor: true }); break; }
+        /* 生病就先治療:不治療的話每學期扣能力,期末考很快就過不了 */
+        if (p.cure?.available) { game.submit({ cure: true }); break; }
         const act = chooseActivity(game, p, actPolicy);
         if (!act) { game.submit({ skip: true }); break; }
         game.submit({ actId: act.id });
         break;
       }
+      case 'special':
+        /* 特殊角色的出手決策。模擬器只看得到稱號與情境(跟玩家一樣),
+         * 看不到分級,所以策略只有「一律出手」與「一律收手」兩種極端。 */
+        game.submit({ go: specialPolicy !== 'decline' });
+        break;
       default:
         game.submit({});
         break;
@@ -117,20 +125,26 @@ function median(arr) {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 }
 
-function runBatch({ dept, rounds, dicePolicy, actPolicy, eventPolicy, seedPrefix }) {
+function runBatch({ dept, rounds, dicePolicy, actPolicy, eventPolicy, specialPolicy, seedPrefix }) {
   const kills = [];
   const tiers = {};
   let graduated = 0;
   let mentorFound = 0;
+  let loggedOut = 0;
+  let infected = 0;
+  let hiv = 0;
   const expelSemesters = [];
 
   for (let i = 0; i < rounds; i++) {
     const { ending, state } = playOne({
-      dept, seed: `${seedPrefix}-${dept}-${i}`, dicePolicy, actPolicy, eventPolicy,
+      dept, seed: `${seedPrefix}-${dept}-${i}`, dicePolicy, actPolicy, eventPolicy, specialPolicy,
     });
     kills.push(ending.kills);
     tiers[ending.tierName] = (tiers[ending.tierName] || 0) + 1;
     if (ending.graduated) graduated++; else expelSemesters.push(state.semester);
+    if (ending.reason === 'fatal') loggedOut++;
+    if (state.std || state.stdCured > 0) infected++;
+    if (state.std === 'hiv') hiv++;
     if (state.mentorFound) mentorFound++;
   }
 
@@ -138,6 +152,9 @@ function runBatch({ dept, rounds, dicePolicy, actPolicy, eventPolicy, seedPrefix
     dept, rounds, graduated,
     gradRate: graduated / rounds,
     mentorRate: mentorFound / rounds,
+    logoutRate: loggedOut / rounds,
+    infectRate: infected / rounds,
+    hivRate: hiv / rounds,
     killsAvg: kills.reduce((a, b) => a + b, 0) / rounds,
     killsMedian: median(kills),
     killsMax: Math.max(...kills),
@@ -174,6 +191,11 @@ const STRATEGIES = [
     dicePolicy: 'allSocial', actPolicy: 'default', eventPolicy: 'safe',
   },
   {
+    key: 'cautious', label: '謹慎（留 4 點邊際、對特殊角色一律收手）',
+    dicePolicy: 'margin4', actPolicy: 'default', eventPolicy: 'safe',
+    specialPolicy: 'decline',
+  },
+  {
     key: 'noMentor', label: '熟練但不找老學長',
     dicePolicy: 'margin4', actPolicy: 'noMentor', eventPolicy: 'safe',
   },
@@ -185,7 +207,7 @@ let anyFailure = false;
 for (const strat of STRATEGIES) {
   console.log(`\n【策略】${strat.label}`);
   console.log('-'.repeat(72));
-  console.log('科系      畢業率   老學長   人斬平均  中位數  最高  最低  平均退學學期');
+  console.log('科系      畢業率   登出率  感染率  老學長   人斬平均  中位數  最高  最低');
   allResults[strat.key] = {};
 
   for (const dept of DEPT_KEYS) {
@@ -196,6 +218,7 @@ for (const strat of STRATEGIES) {
         dicePolicy: strat.dicePolicy,
         actPolicy: strat.actPolicy,
         eventPolicy: strat.eventPolicy,
+        specialPolicy: strat.specialPolicy || 'accept',
         seedPrefix: strat.key,
       });
     } catch (e) {
@@ -207,12 +230,13 @@ for (const strat of STRATEGIES) {
     console.log(
       `${DEPTS[dept].name.padEnd(8)}` +
       `${pct(r.graduated, r.rounds).padStart(7)}  ` +
+      `${(r.logoutRate * 100).toFixed(1).padStart(5)}%  ` +
+      `${(r.infectRate * 100).toFixed(0).padStart(5)}%  ` +
       `${(r.mentorRate * 100).toFixed(0).padStart(5)}%  ` +
       `${r.killsAvg.toFixed(1).padStart(8)}  ` +
       `${String(r.killsMedian).padStart(6)}  ` +
       `${String(r.killsMax).padStart(4)}  ` +
-      `${String(r.killsMin).padStart(4)}  ` +
-      `${r.expelAvgSemester ? r.expelAvgSemester.toFixed(1).padStart(10) : '        —'}`,
+      `${String(r.killsMin).padStart(4)}`,
     );
   }
 }

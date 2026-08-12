@@ -307,9 +307,28 @@ describe('社交活動', () => {
     const { S, rng } = mk('ENG');
     S.ab = { sta: 40, int: 40, str: 40, skl: 30 };
     const r = runActivity(S, 'act_mixer', rng);   /* 聯誼 enc:3 risk:mid */
-    assert.equal(r.results.length, 3);
+    /* 特殊角色不立即結算,會被分流到 specials 交給玩家決定,
+     * 所以總接觸人數要把兩邊加起來 */
+    assert.equal(r.results.length + r.specials.length, 3);
     assert.equal(S.risk, CONFIG.activityRiskValue.mid);
     assert.equal(S.stats.activitiesDone, 1);
+  });
+
+  test('特殊角色會被分流出來,不會在活動中直接結算', () => {
+    const { S, rng } = mk('ENG');
+    S.ab = { sta: 40, int: 40, str: 40, skl: 30 };
+    let sawSpecial = false;
+    for (let i = 0; i < 40 && !sawSpecial; i++) {
+      const r = runActivity(S, 'act_mixer', rng);
+      for (const x of r.results) {
+        assert.equal(x.target.tier, 'normal', '立即結算的對象只能是一般角色');
+      }
+      for (const sp of r.specials) {
+        assert.notEqual(sp.tier, 'normal', 'specials 裡只能是特殊角色');
+        sawSpecial = true;
+      }
+    }
+    assert.ok(sawSpecial, '40 場活動都沒遇到特殊角色,抽取權重可能有問題');
   });
 
   test('門檻不足時執行活動會拋出錯誤', () => {
@@ -323,9 +342,9 @@ describe('社交活動', () => {
     S.ab = { sta: 40, int: 40, str: 40, skl: 30 };
     S.encBonus = 2;
     const r1 = runActivity(S, 'act_club', rng);      /* enc:2 + 2 = 4 */
-    assert.equal(r1.results.length, 4);
+    assert.equal(r1.results.length + r1.specials.length, 4);
     const r2 = runActivity(S, 'act_club', rng);      /* 加成已用完 = 2 */
-    assert.equal(r2.results.length, 2);
+    assert.equal(r2.results.length + r2.specials.length, 2);
   });
 });
 
