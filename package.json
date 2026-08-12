@@ -1,0 +1,13 @@
+{
+  "name": "dazhongma",
+  "version": "0.1.0",
+  "description": "大種馬 — 種馬人生模擬器",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "sim": "node sim/playthrough.js",
+    "build": "node sim/build.js",
+    "serve": "node sim/serve.js 5188"
+  }
+}

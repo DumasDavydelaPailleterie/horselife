@@ -1,0 +1,418 @@
+/* 畫面渲染與互動 — 唯一會碰 DOM 的檔案
+ * 邏輯全部來自 core/engine.js;這裡只負責顯示與收集玩家輸入。
+ */
+
+import { createGame } from '../core/engine.js';
+import { CONFIG, PHASES, PHASE_NAMES, SEMESTER_NAMES, ABL } from '../data/config.js';
+import { DEPTS, DEPT_KEYS } from '../data/depts.js';
+import { randomSeed } from '../rng.js';
+
+const APP_VER = 'v0.1.0';
+const $ = (id) => document.getElementById(id);
+
+let game = null;
+let seed = new URLSearchParams(location.search).get('seed') || randomSeed();
+let chosenDept = 'ENG';
+let lastRenderedLog = 0;
+let curBlock = null;
+let curBlockKey = '';
+
+/* ================= 開場畫面 ================= */
+
+function buildStart() {
+  $('ver').textContent = APP_VER;
+  $('seed-show').value = seed;
+
+  const seg = $('seg-dept');
+  seg.innerHTML = '';
+  DEPT_KEYS.forEach((k) => {
+    const b = document.createElement('button');
+    b.dataset.v = k;
+    b.textContent = DEPTS[k].name;
+    if (k === chosenDept) b.className = 'on';
+    b.onclick = () => {
+      chosenDept = k;
+      [...seg.children].forEach((c) => c.classList.toggle('on', c.dataset.v === k));
+      showDeptNote();
+    };
+    seg.appendChild(b);
+  });
+  showDeptNote();
+
+  $('seed-re').onclick = (e) => {
+    e.preventDefault();
+    seed = randomSeed();
+    $('seed-show').value = seed;
+  };
+  $('seed-show').oninput = (e) => { seed = e.target.value.trim() || randomSeed(); };
+  $('btn-start').onclick = start;
+  $('btn-restart').onclick = () => { location.href = location.pathname; };
+}
+
+function showDeptNote() {
+  const d = DEPTS[chosenDept];
+  const s = d.start;
+  $('dept-note').innerHTML =
+    `<b style="color:var(--chalk)">${d.note}</b><br>` +
+    `起始 體力 ${s.sta}・學力 ${s.int}・肌力 ${s.str}・技巧力 ${s.skl}　｜　` +
+    `畢業門檻 學力 ${d.examInt[7]}・肌力 ${d.examStr[7]}`;
+}
+
+function start() {
+  const name = ($('in-name').value || '').trim() || '朱董';
+  seed = ($('seed-show').value || '').trim() || randomSeed();
+  history.replaceState(null, '', `?seed=${encodeURIComponent(seed)}`);
+
+  game = createGame({ name, dept: chosenDept, seed });
+  $('start').style.display = 'none';
+  $('board').style.display = '';
+  $('act').style.display = '';
+  $('act-toggle').style.display = '';
+  $('act-toggle').onclick = () => {
+    const a = $('act');
+    a.classList.toggle('collapsed');
+    $('act-toggle').textContent = a.classList.contains('collapsed') ? '⌃ 展開選項' : '⌄ 收合選項';
+  };
+  lastRenderedLog = 0;
+  refresh();
+}
+
+/* ================= 記分板 ================= */
+
+function board() {
+  const i = game.info();
+  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>`;
+  $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
+  $('bd-age').textContent = i.age;
+  $('bd-year').textContent = i.year;
+  $('bd-ovr').textContent = i.ovr;
+  $('bd-kills').textContent = i.kills;
+
+  /* 能力條:紅色刻度標示本學期期末考門檻 */
+  const rows = $('abrows');
+  rows.innerHTML = '';
+  for (const k of ['sta', 'int', 'str', 'skl']) {
+    const v = i.ab[k], cap = i.pot[k];
+    const pctW = Math.min(100, (v / Math.max(cap, 1)) * 100);
+    let mark = '';
+    if (i.exam && (k === 'int' || k === 'str')) {
+      const need = k === 'int' ? i.exam.int : i.exam.str;
+      const mp = Math.min(100, (need / Math.max(cap, 1)) * 100);
+      const short = v < need;
+      mark = `<em style="left:${mp}%;${short ? '' : 'background:#8fd08faa'}" title="期末門檻 ${need}"></em>`;
+    }
+    const short = i.exam && ((k === 'int' && v < i.exam.int) || (k === 'str' && v < i.exam.str));
+    rows.insertAdjacentHTML('beforeend',
+      `<div class="ab"><span class="nm">${ABL[k]}</span>` +
+      `<span class="bar"><i style="width:${pctW}%"></i>${mark}</span>` +
+      `<span class="val" ${short ? 'style="color:var(--bad)"' : ''}>${v}<s>/${cap}</s></span></div>`);
+  }
+
+  /* 階段燈 */
+  const lamps = $('lamps');
+  lamps.innerHTML = PHASES.map((p) =>
+    `<span class="lamp ${p === i.phase && !i.over ? 'on' : ''}"><i></i>${PHASE_NAMES[p]}</span>`).join('');
+}
+
+/* ================= 紀錄卡片 ================= */
+
+const EFFECT_NAMES = {
+  ...ABL, enc: '邂逅機會', rep: '校內風評', risk: '意外風險',
+  slot: '社交場次', kill: '人斬',
+};
+
+function effectLine(applied) {
+  if (!applied || applied.length === 0) return '';
+  const parts = applied.map((a) => {
+    const n = EFFECT_NAMES[a.key] || a.key;
+    const v = a.actual !== undefined ? a.actual : a.amount;
+    if (v === 0) return `${n} 沒有變化`;
+    /* 風評與風險上升是壞事,顯示顏色要反過來 */
+    const inverted = a.key === 'rep' || a.key === 'risk';
+    const good = inverted ? v < 0 : v > 0;
+    return `<span class="${good ? 'up' : 'dn'}">${n} ${v > 0 ? '+' : ''}${v}</span>`;
+  });
+  return `<div class="eff">${parts.join('　')}</div>`;
+}
+
+function logTarget(entry) {
+  const key = `${entry.semester}`;
+  if (curBlockKey !== key) {
+    /* 收合前一個學期區塊 */
+    if (curBlock) curBlock.classList.add('collapsed');
+    const block = document.createElement('div');
+    block.className = 'yr-block';
+    block.innerHTML =
+      `<div class="yr-head">${entry.semesterName}　${SEMESTER_NAMES[entry.semester - 1] ? '' : ''}</div>` +
+      `<div class="yr-body"></div>`;
+    block.querySelector('.yr-head').onclick = () => block.classList.toggle('collapsed');
+    $('log').appendChild(block);
+    curBlock = block;
+    curBlockKey = key;
+
+    /* 只保留最近幾個區塊,釋放 DOM */
+    const blocks = $('log').querySelectorAll('.yr-block');
+    if (blocks.length > 4) blocks[0].remove();
+  }
+  return curBlock.querySelector('.yr-body');
+}
+
+function renderLog() {
+  const log = game.state.log;
+  for (let i = lastRenderedLog; i < log.length; i++) {
+    const e = log[i];
+    const target = logTarget(e);
+    const card = document.createElement('div');
+    card.className = `card ${e.kind || ''}`;
+    let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
+    html += effectLine(e.applied);
+    if (e.detail && e.detail.length) {
+      html += `<div class="det">${e.detail.map((d) =>
+        d.includes('成功') && !d.includes('沒有下文')
+          ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
+    }
+    card.innerHTML = html;
+    target.appendChild(card);
+  }
+  lastRenderedLog = log.length;
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* ================= 操作區 ================= */
+
+function actTitle(t) { return `<div class="title">${t}</div>`; }
+
+function renderAction() {
+  const p = game.pending;
+  const act = $('act');
+  act.innerHTML = '';
+
+  if (!p) return;
+
+  switch (p.type) {
+    case 'dice': return renderDice(p);
+    case 'event': return renderEvent(p);
+    case 'activity': return renderActivity(p);
+    case 'midterm': return renderConfirm('期中考', '知道了，繼續');
+    case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
+    case 'accident': return renderConfirm('意外事件', '認了，繼續');
+    case 'gameover': return renderEnding(p.ending);
+    default: return renderConfirm('繼續', '繼續');
+  }
+}
+
+function renderConfirm(title, label) {
+  const act = $('act');
+  act.innerHTML = actTitle(title);
+  const b = document.createElement('button');
+  b.className = 'btn main';
+  b.textContent = label;
+  b.onclick = () => { game.submit({}); refresh(); };
+  act.appendChild(b);
+}
+
+/* ---------- 骰子分配 ---------- */
+
+function renderDice(p) {
+  const act = $('act');
+  const dice = p.dice;
+  const used = new Array(dice.length).fill(false);
+  const assignments = [];
+  let active = 0;
+
+  function draw() {
+    act.innerHTML = actTitle(
+      `分配訓練成果（${assignments.length}/${dice.length} 顆已分配）　點骰子選擇，再點下方去處`);
+
+    const row = document.createElement('div');
+    row.id = 'dice';
+    dice.forEach((pip, i) => {
+      const d = document.createElement('div');
+      d.className = `die${used[i] ? ' used' : ''}${i === active && !used[i] ? ' active' : ''}${pip === 6 ? ' six' : ''}`;
+      d.textContent = pip;
+      if (!used[i]) d.onclick = () => { active = i; draw(); };
+      row.appendChild(d);
+    });
+    act.appendChild(row);
+
+    if (assignments.length === dice.length) {
+      const go = document.createElement('button');
+      go.className = 'btn main';
+      go.textContent = '確定分配 ▸';
+      go.onclick = () => { game.submit({ assignments }); refresh(); };
+      act.appendChild(go);
+      const undo = document.createElement('button');
+      undo.className = 'btn';
+      undo.textContent = '↺ 重新分配';
+      undo.onclick = () => {
+        assignments.length = 0;
+        used.fill(false);
+        active = 0;
+        draw();
+      };
+      act.appendChild(undo);
+      return;
+    }
+
+    const pip = dice[active];
+    const info = game.info();
+    const grid = document.createElement('div');
+    grid.className = 'alloc';
+
+    const opts = [
+      { to: 'sta', label: `體力 +${pip}`, note: `目前 ${info.ab.sta}／上限 ${info.pot.sta}　場次來源` },
+      { to: 'int', label: `學力 +${pip}`, note: `目前 ${info.ab.int}　期末需要 ${info.exam?.int ?? '—'}` },
+      { to: 'str', label: `肌力 +${pip}`, note: `目前 ${info.ab.str}　期末需要 ${info.exam?.str ?? '—'}` },
+      {
+        to: 'social',
+        label: `社交場次 +${Math.floor(pip / CONFIG.slotPerDiceDiv)}`,
+        note: `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
+      },
+    ];
+
+    opts.forEach((o) => {
+      const b = document.createElement('button');
+      b.className = `btn${o.to === 'social' ? ' gold' : ''}`;
+      b.innerHTML = `${o.label}<small>${o.note}</small>`;
+      b.onclick = () => {
+        assignments.push({ die: active, to: o.to });
+        used[active] = true;
+        const next = used.findIndex((u) => !u);
+        active = next === -1 ? active : next;
+        draw();
+      };
+      grid.appendChild(b);
+    });
+    act.appendChild(grid);
+  }
+
+  draw();
+}
+
+/* ---------- 事件卡 ---------- */
+
+function renderEvent(p) {
+  const act = $('act');
+  act.innerHTML = actTitle(`事件｜${p.card.n}　—　你要怎麼應對？`);
+  const d = document.createElement('p');
+  d.style.cssText = 'font-size:13px;color:var(--dim);margin-bottom:6px';
+  d.textContent = p.card.desc;
+  act.appendChild(d);
+
+  /* 顯示順序:全力一搏 → 照常執行 → 保守應對(與原型截圖一致) */
+  const order = ['bold', 'normal', 'safe'];
+  order.forEach((key) => {
+    const o = p.options.find((x) => x.key === key);
+    if (!o) return;
+    const b = document.createElement('button');
+    b.className = `btn${key === 'normal' ? ' main' : ''}${key === 'bold' ? ' warn' : ''}`;
+    b.innerHTML = `${o.label}<small>成功率 ${o.rate}%｜加成／減益幅度 ±${o.mag}</small>`;
+    b.onclick = () => { game.submit({ response: key }); refresh(); };
+    act.appendChild(b);
+  });
+}
+
+/* ---------- 社交活動 ---------- */
+
+function renderActivity(p) {
+  const act = $('act');
+  const i = game.info();
+  act.innerHTML = actTitle(
+    `社交活動　剩餘場次 <span class="hl">${p.slotsLeft}</span>　` +
+    `風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
+
+  if (p.mentor?.available) {
+    const b = document.createElement('button');
+    b.className = 'btn gold';
+    b.innerHTML = `🍺 ${p.mentor.session.n}<small>` +
+      `技巧力 +${p.mentor.sklGain}　消耗 ${p.mentor.cost} 場次　（機會有限）</small>`;
+    b.onclick = () => { game.submit({ mentor: true }); refresh(); };
+    act.appendChild(b);
+  }
+
+  p.list.forEach((a) => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.disabled = !a.available;
+    const diffN = { low: '低', mid: '中', high: '高' }[a.diff];
+    const riskN = { none: '無', low: '低', mid: '中', high: '高', extreme: '極高' }[a.risk];
+    b.innerHTML = `${a.name}　<span class="hl">接觸 ${a.enc} 人</span><small>` +
+      (a.available
+        ? `對象難度 ${diffN}｜風險 ${riskN}`
+        : `需要 ${a.lockReason}`) + `</small>`;
+    if (a.available) {
+      b.onclick = () => { game.submit({ actId: a.id }); refresh(); };
+    }
+    act.appendChild(b);
+  });
+
+  const skip = document.createElement('button');
+  skip.className = 'btn warn';
+  skip.innerHTML = '這學期不再出門<small>放棄剩餘場次，直接進入期末</small>';
+  skip.onclick = () => { game.submit({ skip: true }); refresh(); };
+  act.appendChild(skip);
+}
+
+/* ---------- 結局 ---------- */
+
+function renderEnding(e) {
+  const act = $('act');
+  act.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card gold';
+  const names = e.conquered.length
+    ? e.conquered.join('、')
+    : '（一位都沒有）';
+
+  card.innerHTML = `
+    <div class="end-hero">
+      <div class="tier">${e.headline}</div>
+      <div class="kills">${e.kills}<small>生涯人斬</small></div>
+    </div>
+    <p>${e.gradLine}</p>
+    <table class="fin">
+      <tr><th>項目</th><th>數值</th></tr>
+      <tr><td>就讀學期</td><td>${e.semestersPlayed} / ${CONFIG.totalSemesters}</td></tr>
+      <tr><td>體力</td><td>${e.ab.sta}</td></tr>
+      <tr><td>學力</td><td>${e.ab.int}</td></tr>
+      <tr><td>肌力</td><td>${e.ab.str}</td></tr>
+      <tr><td>技巧力</td><td>${e.ab.skl}</td></tr>
+      <tr><td>攻略嘗試</td><td>${e.stats.attempts} 次</td></tr>
+      <tr><td>攻略成功率</td><td>${e.stats.successRate}%</td></tr>
+      <tr><td>社交活動</td><td>${e.stats.activitiesDone} 場</td></tr>
+      <tr><td>校內風評</td><td>${e.rep}</td></tr>
+      <tr><td>老學長</td><td>${e.mentorFound ? '找到了' : '始終沒遇到'}</td></tr>
+    </table>
+    <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
+  `;
+  logTarget({ semester: game.state.semester, semesterName: '結局' }).appendChild(card);
+
+  act.innerHTML = actTitle(`世界種子　${game.seed}`);
+  const again = document.createElement('button');
+  again.className = 'btn main';
+  again.textContent = '↺ 再玩一次（換一個種子）';
+  again.onclick = () => { location.href = location.pathname; };
+  act.appendChild(again);
+
+  const same = document.createElement('button');
+  same.className = 'btn';
+  same.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
+  same.onclick = () => { location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`; };
+  act.appendChild(same);
+
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* ================= 主更新 ================= */
+
+function refresh() {
+  board();
+  renderLog();
+  renderAction();
+}
+
+buildStart();
+
+/* 給瀏覽器主機測試用:暴露最小介面 */
+window.__game = () => game;

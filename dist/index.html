@@ -1,0 +1,2196 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1a12">
+<title>HorseLife - 種馬人生模擬器</title>
+<meta name="description" content="大一入學到畢業或退學。每一顆骰子都算數。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2226%22 font-size=%2226%22%3E%F0%9F%90%8E%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b1a12; --panel:#132920; --panel2:#1a382a; --edge:#2b4d3a;
+  --chalk:#ece7d6; --dim:#93ab9c; --amber:#ffc95c; --clay:#c9764a;
+  --good:#8fd08f; --bad:#e2695c; --blue:#7fb3d5; --gold:#ffd479;
+  --mono:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;
+  --sans:-apple-system,'PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--chalk);font-family:var(--sans);font-size:15px;line-height:1.6;
+  background-image:radial-gradient(ellipse 120% 60% at 50% -10%,#16352644 0%,transparent 60%)}
+#app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+
+/* ---------- 記分板 ---------- */
+#board{position:sticky;top:0;z-index:20;background:linear-gradient(#173125,#122519);
+  border-bottom:2px solid var(--edge);padding:10px 14px 8px;box-shadow:0 6px 18px #0009}
+#bd-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#bd-name{font-weight:900;font-size:17px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bd-name small{color:var(--dim);font-weight:500;font-size:12px;margin-left:6px}
+#bd-term{color:var(--amber);font-size:12.5px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
+#btn-restart{background:none;border:1px solid #2b4a38;color:#8fae9c;border-radius:8px;
+  font-size:14px;line-height:1;padding:4px 8px;margin-left:8px;cursor:pointer;flex:none}
+#bd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.bd-cell{background:#0d2115;border:1px solid var(--edge);border-radius:6px;padding:4px 6px 3px;text-align:center}
+.bd-cell b{display:block;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--amber);
+  text-shadow:0 0 8px #ffc95c55;line-height:1.2}
+.bd-cell span{font-size:10px;color:var(--dim);letter-spacing:.15em}
+#abrows{margin-top:8px;display:grid;gap:3px}
+.ab{display:flex;align-items:center;gap:7px;font-size:11.5px}
+.ab .nm{width:44px;color:var(--dim);flex:none}
+.ab .bar{flex:1;height:6px;background:#0d2115;border-radius:3px;overflow:hidden;position:relative}
+.ab .bar i{display:block;height:100%;background:linear-gradient(90deg,#3c6a4c,var(--amber));border-radius:3px;transition:.25s}
+.ab .bar em{position:absolute;top:-2px;bottom:-2px;width:2px;background:#e2695caa;border-radius:1px}
+.ab .val{font-family:var(--mono);width:52px;text-align:right;flex:none}
+.ab .val s{color:var(--dim);text-decoration:none;font-size:10px}
+#lamps{display:flex;gap:10px;justify-content:center;margin-top:7px;flex-wrap:wrap}
+.lamp{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--dim);letter-spacing:.08em}
+.lamp i{width:8px;height:8px;border-radius:50%;background:#243c2e;border:1px solid #35543f;display:inline-block;flex:none}
+.lamp.on{color:var(--chalk)} .lamp.on i{background:var(--amber);box-shadow:0 0 8px var(--amber);border-color:var(--amber)}
+
+/* ---------- 主紀錄 ---------- */
+#log{flex:1;padding:14px 14px 20px;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:12px 14px;
+  animation:pop .25s ease;overflow-wrap:anywhere}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card h4{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:700;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px}
+.card h4::before{content:'';width:8px;height:8px;background:var(--clay);border-radius:2px;transform:rotate(45deg);flex:none}
+.card.gold h4::before{background:var(--gold)} .card.bad h4::before{background:var(--bad)}
+.card.good h4::before{background:var(--good)} .card.info h4::before{background:var(--blue)}
+.card.gold{border-color:#6b5a2a;background:linear-gradient(#1d2f1f,#132920)}
+.card p{font-size:14px;white-space:pre-line} .card p+p{margin-top:4px}
+.eff{font-family:var(--mono);font-size:12px;color:var(--chalk);background:#0d2115;
+  border:1px dashed var(--edge);border-radius:6px;padding:5px 8px;margin-top:6px}
+.up{color:var(--good);font-weight:700}.dn{color:var(--bad);font-weight:700}.hl{color:var(--amber);font-weight:700}
+.det{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.75}
+.det .ok{color:var(--good)}
+.yr-head{text-align:center;color:var(--dim);font-size:11px;letter-spacing:.3em;padding:8px 0 0;
+  cursor:pointer;user-select:none}
+.yr-head:hover{color:var(--amber)}
+.yr-block.collapsed .yr-body{display:none}
+.yr-block.collapsed .yr-head::after{content:' ▸'}
+.yr-block:not(.collapsed) .yr-head::after{content:' ▾'}
+.yr-body{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+/* ---------- 操作區 ---------- */
+#act{position:sticky;bottom:0;z-index:20;background:linear-gradient(#122519ee,#0b1a12);
+  border-top:2px solid var(--edge);padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  backdrop-filter:blur(6px)}
+#act .title{font-size:12px;letter-spacing:.14em;color:var(--dim);margin-bottom:8px;font-weight:700}
+.btn{display:block;width:100%;background:var(--panel2);border:1px solid var(--edge);color:var(--chalk);
+  font-family:var(--sans);font-size:15px;font-weight:700;border-radius:10px;padding:11px 14px;margin-top:8px;
+  cursor:pointer;text-align:left;transition:.15s}
+.btn:active{transform:scale(.98)} .btn:hover{border-color:var(--amber)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn small{display:block;font-weight:400;font-size:12px;color:var(--dim);margin-top:2px}
+.btn.main{background:linear-gradient(#2a5038,#1f3f2c);border-color:#3c6a4c;text-align:center}
+.btn.gold{background:linear-gradient(#4a3d1c,#332a13);border-color:#6b5a2a}
+.btn.warn{border-color:#6a3c3c}
+#act-toggle{display:block;margin:0 auto -4px;background:#0e2015;border:1px solid #2b4a38;
+  border-bottom:none;color:#8fae9c;font-size:11px;padding:3px 14px;border-radius:10px 10px 0 0;cursor:pointer}
+#act.collapsed{display:none!important}
+
+/* 骰子 */
+#dice{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.die{width:46px;height:46px;border-radius:9px;background:var(--chalk);color:#12251a;font-family:var(--mono);
+  font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  box-shadow:inset 0 -3px 0 #0003;position:relative;cursor:pointer;transition:.15s}
+.die::after{content:'';position:absolute;inset:4px;border-radius:6px;border:1.5px dashed #c9764a55}
+.die.used{opacity:.2;transform:scale(.88);cursor:default}
+.die.active{outline:3px solid var(--amber);outline-offset:2px}
+.die.six{color:#b3402f}
+.alloc{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.alloc .btn{margin-top:0}
+.pool{font-family:var(--mono);font-size:13px;color:var(--amber);margin-bottom:8px}
+
+/* 開場 */
+#start{position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;
+  background-image:radial-gradient(ellipse 120% 50% at 50% -5%,#1d4630aa,transparent 60%)}
+#start .wrap{max-width:560px;margin:0 auto;padding:38px 22px 60px}
+#start h1{font-size:34px;font-weight:900;letter-spacing:.06em;line-height:1.25;margin-top:16px}
+#start h1 em{font-style:normal;color:var(--amber)}
+#start .sub{color:var(--dim);margin:10px 0 24px;font-size:13.5px;letter-spacing:.05em}
+.field{margin-top:18px}
+.field label{display:block;font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:700;margin-bottom:8px}
+.field input{width:100%;background:var(--panel);border:1px solid var(--edge);border-radius:10px;color:var(--chalk);
+  font-family:var(--sans);font-size:16px;padding:11px 14px;outline:none}
+.field input:focus{border-color:var(--amber)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.seg button{background:var(--panel);border:1px solid var(--edge);border-radius:10px;color:var(--dim);
+  font-family:var(--sans);font-size:14.5px;font-weight:700;padding:11px 4px;cursor:pointer}
+.seg button.on{background:var(--panel2);color:var(--amber);border-color:var(--amber)}
+#dept-note{font-size:12px;color:var(--dim);margin-top:8px;min-height:34px}
+.seedline{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:20px}
+.seedline input{width:120px;background:#0e2015;color:var(--amber);border:1px solid #2b4a38;
+  border-radius:6px;padding:2px 6px;font-family:inherit;font-size:12px;text-align:center}
+.horse{width:64px;height:64px;border-radius:50%;background:var(--chalk);display:flex;
+  align-items:center;justify-content:center;font-size:36px;box-shadow:inset -6px -8px 0 #00000014}
+#ver{position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);
+  opacity:.55;font-family:var(--mono);z-index:60;pointer-events:none}
+
+/* 結局 */
+.end-hero{text-align:center;padding:6px 0 2px}
+.end-hero .tier{font-size:26px;font-weight:900;color:var(--gold);letter-spacing:.04em}
+.end-hero .kills{font-family:var(--mono);font-size:48px;font-weight:700;color:var(--amber);
+  text-shadow:0 0 16px #ffc95c44;line-height:1.1;margin-top:4px}
+.end-hero .kills small{font-size:14px;color:var(--dim);display:block;letter-spacing:.3em;font-family:var(--sans)}
+table.fin{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:6px}
+table.fin th,table.fin td{border-bottom:1px solid var(--edge);padding:4px;text-align:right}
+table.fin th{color:var(--dim);font-weight:500}
+table.fin td:first-child,table.fin th:first-child{text-align:left}
+.namelist{font-size:12px;color:var(--dim);line-height:1.9;margin-top:6px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="ver"></div>
+
+<div id="start">
+  <div class="wrap">
+    <div class="horse">🐎</div>
+    <h1>HorseLife<br><em>種馬人生模擬器</em></h1>
+    <p class="sub">大一入學 → 上學期・寒假・下學期・暑假 → 週而復始 → 畢業或退學。每一顆骰子都算數。</p>
+
+    <div class="field">
+      <label>主角姓名</label>
+      <input id="in-name" maxlength="10" placeholder="例如：朱董">
+    </div>
+
+    <div class="field">
+      <label>學院</label>
+      <div class="seg" id="seg-dept"></div>
+      <div id="dept-note"></div>
+    </div>
+
+    <button class="btn main" style="margin-top:24px" id="btn-start">開始生涯 ▸ 大一上學期</button>
+
+    <p class="seedline">世界種子
+      <input id="seed-show" maxlength="24">
+      · <a href="#" id="seed-re" style="color:var(--blue)">換一個</a><br>
+      相同種子＋相同選擇＝相同人生（可直接輸入朋友的種子碼）</p>
+  </div>
+</div>
+
+<div id="app">
+  <header id="board" style="display:none">
+    <div id="bd-top">
+      <div id="bd-name"></div>
+      <div id="bd-term"></div>
+      <button id="btn-restart" title="重新開始">↺</button>
+    </div>
+    <div id="bd-grid">
+      <div class="bd-cell"><b id="bd-age">18</b><span>年齡</span></div>
+      <div class="bd-cell"><b id="bd-year">2026</b><span>年份</span></div>
+      <div class="bd-cell"><b id="bd-ovr">0</b><span>綜合</span></div>
+      <div class="bd-cell"><b id="bd-kills">0</b><span>生涯人斬</span></div>
+    </div>
+    <div id="abrows"></div>
+    <div id="lamps"></div>
+  </header>
+  <main id="log"></main>
+  <button id="act-toggle" style="display:none">⌄ 收合選項</button>
+  <footer id="act" style="display:none"></footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================================================================
+   src/data/config.js
+   ================================================================ */
+/* 大種馬 — 平衡參數集中表
+ * 所有可調數值都在這個檔案裡。調平衡只需要改這裡,不要改邏輯程式碼。
+ */
+
+const CONFIG = {
+  /* ---------- 基本設定 ---------- */
+  startAge: 18,
+  startYear: 2026,
+  totalSemesters: 8,        /* 大一上 ~ 大四下 */
+
+  /* ---------- 骰子與加點 ---------- */
+  dicePerSemester: 3,       /* 每學期擲幾顆骰 */
+  diceFaces: 6,             /* 骰子面數 */
+  slotPerDiceDiv: 2,        /* 骰子兌換社交場次:點數 ÷ 此值(向下取整) */
+  allocatableAbilities: ['sta', 'int', 'str'],  /* 技巧力不能用骰子加點 */
+
+  /* ---------- 社交活動場次 ---------- */
+  baseSlotConst: 2,         /* 基礎場次 = 此常數 + 體力 ÷ slotStaDiv */
+  slotStaDiv: 12,
+
+  /* ---------- 攻略成功率公式 ---------- */
+  /* 成功率(%) = sta*w.sta + int*w.int + str*w.str + skl*w.skl - 難度修正 - 風評修正 */
+  conquestWeights: { skl: 0.6, str: 0.3, sta: 0.1, int: 0 },
+  difficultyPenalty: { low: 5, mid: 15, high: 25 },
+  repPenaltyDiv: 8,         /* 風評修正 = 風評 ÷ 此值(向下取整) */
+  conquestRateMin: 1,       /* 成功率下限(%) — 永遠留一線希望 */
+  conquestRateMax: 90,      /* 成功率上限(%) */
+
+  /* ---------- 技巧力成長 ---------- */
+  sklOnSuccess: 2,
+  sklOnFail: 0.5,
+  sklSoftCap: 60,           /* 超過此值後成功獲得量減半 */
+  mentorSessions: 3,        /* 老學長帶浪次數 */
+  mentorSklPerSession: 10,  /* 每次帶浪的技巧力 */
+  mentorSlotCost: 1,        /* 每次帶浪消耗的社交場次 */
+
+  /* ---------- 風評與風險 ---------- */
+  repPerConquest: 1,        /* 每次成功攻略累積的風評 */
+  repDecayPerSemester: 1,   /* 每學期自然消退 */
+  riskCapPercent: 60,       /* 意外事件觸發機率上限 */
+  riskFromActivity: true,   /* 活動的風險係數是否累積 */
+  activityRiskValue: { none: 0, low: 2, mid: 5, high: 10, extreme: 15 },
+
+  /* ---------- 事件卡 ---------- */
+  eventsPerPhase: { H1: 1, MID: 1, H2: 2, FIN: 0, VAC: 2 },
+  /* 三段應對:成功率與幅度 */
+  responses: {
+    bold:   { label: '全力一搏', rate: 35, mag: 3 },
+    normal: { label: '照常執行', rate: 50, mag: 2 },
+    safe:   { label: '保守應對', rate: 70, mag: 1 },
+  },
+  /* 風險類事件卡進入卡池的門檻 */
+  riskCardGate: { rep: 6 },
+
+  /* ---------- 潛力上限 ---------- */
+  /* 體力/學力/肌力:隨機打亂後依序給予上限範圍 */
+  potRanges: [[68, 78], [58, 68], [48, 58]],
+  potSkl: [75, 90],         /* 技巧力上限範圍 */
+  /* 學力與肌力的上限地板 = 最後一學期門檻 + 此緩衝值。
+   * 用途:避免天賦隨機到讓玩家開局就注定畢不了業(見 core/state.js 的說明)。 */
+  potExamBuffer: 6,
+
+  /* ---------- 起始值隨機浮動 ---------- */
+  startJitter: 2,           /* 起始能力 ±此值(技巧力除外) */
+
+  /* ---------- 結局判定 ---------- */
+  endingTiers: [
+    { min: 80, key: 'legend',  name: '傳說級種馬' },
+    { min: 40, key: 'stud',    name: '大種馬' },
+    { min: 16, key: 'player',  name: '情場浪子' },
+    { min: 4,  key: 'rotate',  name: '快速輪換' },
+    { min: 1,  key: 'normal',  name: '普通大學生' },
+    { min: 0,  key: 'pure',    name: '純情一頁過客' },
+  ],
+};
+
+/* 學期序號 → 中文名稱(1 ~ 8) */
+const SEMESTER_NAMES = [
+  '大一上', '大一下', '大二上', '大二下',
+  '大三上', '大三下', '大四上', '大四下',
+];
+
+/* 階段順序與名稱 */
+const PHASES = ['H1', 'MID', 'H2', 'FIN', 'VAC'];
+const PHASE_NAMES = {
+  H1: '學期前半', MID: '期中考', H2: '學期後半', FIN: '期末考', VAC: '寒暑假',
+};
+
+/* 能力代碼 → 中文 */
+const ABL = { sta: '體力', int: '學力', str: '肌力', skl: '技巧力' };
+
+/* 年級 = 向上取整(學期序號 ÷ 2) */
+const gradeOf = (sem) => Math.ceil(sem / 2);
+
+/* ================================================================
+   src/rng.js
+   ================================================================ */
+/* 種子化隨機數產生器
+ * 沿用 YaKyoLife 的演算法:字串雜湊初始化 + Mulberry32 類混合。
+ * 同一顆種子必定產生完全相同的序列,這是「分享種子碼重現同一局」的基礎。
+ */
+
+function createRng(seedStr) {
+  let s = 1779033703;
+  const str = String(seedStr);
+  for (let i = 0; i < str.length; i++) {
+    s = Math.imul(s ^ str.charCodeAt(i), 3432918353);
+    s = (s << 13) | (s >>> 19);
+  }
+
+  /* 回傳 [0,1) 浮點數 */
+  function next() {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  return {
+    next,
+    /* 閉區間整數 [a,b] */
+    int: (a, b) => a + Math.floor(next() * (b - a + 1)),
+    /* 陣列隨機取一 */
+    pick: (arr) => arr[Math.floor(next() * arr.length)],
+    /* p% 機率 */
+    chance: (p) => next() * 100 < p,
+    /* 原地洗牌(Fisher-Yates),回傳新陣列 */
+    shuffle: (arr) => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(next() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    },
+  };
+}
+
+/* 產生一個隨機種子碼(給「換一個」按鈕用,不需要可重現) */
+function randomSeed() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* ================================================================
+   src/data/depts.js
+   ================================================================ */
+/* 四個科系:起始能力與期末考門檻
+ * 依規格草案 2.3 與 3.2 節。技巧力一律起始 1。
+ */
+
+const DEPTS = {
+  ENG: {
+    key: 'ENG', name: '外文系',
+    start: { sta: 24, int: 26, str: 18, skl: 1 },
+    /* 八個學期的期末考門檻 */
+    examInt: [24, 27, 30, 33, 36, 39, 42, 45],
+    examStr: [17, 20, 23, 26, 28, 30, 32, 34],
+    note: '均衡偏社交型,學業壓力最輕,但體格是弱項',
+  },
+  MATH: {
+    key: 'MATH', name: '數學系',
+    start: { sta: 18, int: 34, str: 16, skl: 1 },
+    examInt: [32, 37, 42, 47, 52, 57, 61, 65],
+    examStr: [15, 17, 19, 21, 23, 25, 27, 29],
+    note: '學力最強,體力與肌力雙低,純靠腦袋活下去',
+  },
+  CS: {
+    key: 'CS', name: '資工系',
+    start: { sta: 16, int: 32, str: 14, skl: 1 },
+    examInt: [30, 35, 40, 45, 50, 55, 59, 63],
+    examStr: [13, 15, 17, 19, 21, 23, 25, 27],
+    note: '學力次高但體格最差,起始總點數最低,是高難度路線',
+  },
+  LAW: {
+    key: 'LAW', name: '法律系',
+    start: { sta: 22, int: 30, str: 20, skl: 1 },
+    examInt: [28, 32, 36, 40, 44, 48, 52, 56],
+    examStr: [19, 22, 25, 28, 31, 34, 36, 38],
+    note: '全能無弱點,起始總點數最高,是新手友善路線',
+  },
+};
+
+const DEPT_KEYS = Object.keys(DEPTS);
+
+/* 取得某科系某學期的期末考門檻 */
+function examThreshold(deptKey, semester) {
+  const d = DEPTS[deptKey];
+  if (!d) throw new Error(`未知科系:${deptKey}`);
+  const i = semester - 1;
+  if (i < 0 || i >= d.examInt.length) throw new Error(`學期超出範圍:${semester}`);
+  return { int: d.examInt[i], str: d.examStr[i] };
+}
+
+/* ================================================================
+   src/data/activities.js
+   ================================================================ */
+/* 社交活動表 — 依規格草案 5.4 節
+ * enc  = 單場接觸對象數(流量)
+ * req  = 能力門檻(null 表示無門檻;examInt 表示需達當學期學力門檻)
+ * diff = 對象平均難度 low / mid / high
+ * risk = 風險係數 none / low / mid / high / extreme
+ * mentorDept = 該活動是哪個系的老學長藏身處
+ */
+
+const ACTIVITIES = [
+  {
+    id: 'act_read', name: '圖書館讀書會', enc: 1,
+    req: { int: 'exam' }, diff: 'low', risk: 'none',
+    mentorDept: 'CS',
+    desc: '幾個人約在圖書館討論室,桌上攤著整疊講義。',
+  },
+  {
+    id: 'act_club', name: '社團活動', enc: 2,
+    req: null, diff: 'low', risk: 'low',
+    mentorDept: 'LAW',
+    desc: '社辦永遠有人在,永遠有人在吃東西。',
+  },
+  {
+    id: 'act_mixer', name: '系上聯誼', enc: 3,
+    req: null, diff: 'mid', risk: 'mid',
+    mentorDept: 'MATH',
+    desc: '兩個系包了一間熱炒店,桌上開始傳骰盅。',
+  },
+  {
+    id: 'act_camp', name: '迎新宿營', enc: 4,
+    req: { sta: 25 }, diff: 'mid', risk: 'mid',
+    mentorDept: 'ENG',
+    desc: '三天兩夜,睡袋、營火,還有永遠玩不完的團康。',
+  },
+  {
+    id: 'act_gym', name: '健身房', enc: 2,
+    req: { str: 30 }, diff: 'mid', risk: 'low',
+    mentorDept: null,
+    desc: '重訓區的鏡子前面永遠有人在找角度。',
+  },
+  {
+    id: 'act_club_night', name: '夜店', enc: 5,
+    req: { str: 35 }, diff: 'high', risk: 'high',
+    mentorDept: null,
+    desc: '門口的人上下看了你一眼,然後讓開。',
+  },
+  {
+    id: 'act_app', name: '校外聯誠/交友軟體', enc: 5,
+    req: { skl: 20 }, diff: 'high', risk: 'extreme',
+    mentorDept: null,
+    desc: '右滑到手指痠,通知一直在跳。',
+  },
+];
+
+const ACT_BY_ID = Object.fromEntries(ACTIVITIES.map((a) => [a.id, a]));
+
+/* 該系老學長藏在哪個活動 */
+function mentorActivityOf(deptKey) {
+  return ACTIVITIES.find((a) => a.mentorDept === deptKey) || null;
+}
+
+/* 判斷某活動在當前狀態下是否可參加。examInt 為當學期學力門檻 */
+function activityAvailable(act, ab, examInt) {
+  if (!act.req) return true;
+  for (const [k, v] of Object.entries(act.req)) {
+    const need = v === 'exam' ? examInt : v;
+    if ((ab[k] || 0) < need) return false;
+  }
+  return true;
+}
+
+/* 活動不可參加時的說明文字(給畫面顯示為何鎖住) */
+function activityLockReason(act, examInt) {
+  if (!act.req) return '';
+  const names = { sta: '體力', int: '學力', str: '肌力', skl: '技巧力' };
+  return Object.entries(act.req)
+    .map(([k, v]) => `${names[k]} ${v === 'exam' ? examInt : v}`)
+    .join('、') + ' 以上';
+}
+
+/* ================================================================
+   src/data/names.js
+   ================================================================ */
+/* 對象姓名生成池
+ * 依規格草案 5.7 節:一個學期可能處理 30 位以上對象,不做完整人物設定,
+ * 用姓氏 + 名字隨機組合即時生成。
+ */
+
+const SURNAMES = [
+  '陳', '林', '黃', '張', '李', '王', '吳', '劉', '蔡', '楊',
+  '許', '鄭', '謝', '郭', '洪', '曾', '廖', '賴', '徐', '周',
+  '葉', '蘇', '莊', '呂', '江', '何', '蕭', '羅', '高', '潘',
+];
+
+const GIVEN = [
+  '雅婷', '怡君', '欣怡', '詩涵', '宜蓁', '佳穎', '子晴', '思妤',
+  '筱晴', '柏妤', '芷若', '若瑄', '沛慈', '于瑄', '亭羽', '曉彤',
+  '嘉恩', '巧薇', '珮綺', '芯瑜', '語彤', '婉如', '靜宜', '心妍',
+  '育萱', '安琪', '玫君', '雨蓁', '品妍', '恩綺',
+];
+
+function makeName(rng) {
+  return rng.pick(SURNAMES) + rng.pick(GIVEN);
+}
+
+const NAME_POOL_SIZE = SURNAMES.length * GIVEN.length;
+
+/* ================================================================
+   src/data/mentors.js
+   ================================================================ */
+/* 老學長 — 依規格草案 5.8 節、事件卡設計 2.7 節
+ * 同性角色,不列入人斬計數。限定大一(學期 1~2),每系一位,只觸發一次。
+ */
+
+const MENTORS = {
+  ENG: {
+    id: 'mt01', dept: 'ENG', name: '帶團學長', activity: 'act_camp',
+    desc: '營火晚會的最後,那個從頭到尾都在掌控節奏的學長走過來坐在你旁邊。他說,你這個人有底子,只是不會用。',
+    result: '他把手機號碼寫在你的營隊手冊背面,說下週六晚上八點,別穿這件衣服。',
+  },
+  MATH: {
+    id: 'mt02', dept: 'MATH', name: '機率學長', activity: 'act_mixer',
+    desc: '聯誼場上有個學長全程沒說幾句話,但每一輪換位子都剛好坐到最好的位置。他跟你說,這不是運氣,是期望值。',
+    result: '他在餐巾紙上畫了一個你看不懂的式子,然後說,先跟我出去幾次,你就懂了。',
+  },
+  CS: {
+    id: 'mt03', dept: 'CS', name: '版主學長', activity: 'act_read',
+    desc: '讀書會結束後,那個一直在角落用筆電的學長叫住你。他說他經營過一個站,累積了十年的資料。',
+    result: '他傳了一份文件給你,檔名很長。他說,理論看完了就出來實作,週末我帶你。',
+  },
+  LAW: {
+    id: 'mt04', dept: 'LAW', name: '學生會學長', activity: 'act_club',
+    desc: '社團會議散場,那個一直在幫大家倒水的學長跟你走同一條路回宿舍。他說,你們法律系的人都太緊繃了。',
+    result: '他說下次有活動叫你一起,順便教你幾件學校不會教的事。',
+  },
+};
+
+/* 三次帶浪的文案(MVP 佔位,規格中標為待補) */
+const MENTOR_SESSIONS = [
+  {
+    n: '第一次帶浪 — 見識場面',
+    text: '你整個晚上幾乎沒說話,只是看著他怎麼開場、怎麼收尾。回家的路上你才發現,原來每一步都是有順序的。',
+  },
+  {
+    n: '第二次帶浪 — 換你上場',
+    text: '這次他退到旁邊,只在你卡住的時候丟一句話過來。你搞砸了兩次,第三次成功了。',
+  },
+  {
+    n: '第三次帶浪 — 出師',
+    text: '散場前他拍了你的肩膀,說接下來不用再找他了。你發現自己已經不太需要他在場。',
+  },
+];
+
+const MENTOR_LIST = Object.values(MENTORS);
+
+/* ================================================================
+   src/data/events.js
+   ================================================================ */
+/* 事件卡 48 張 — 依「大種馬_事件卡設計.md」第二部分
+ *
+ * 欄位:id / n 名稱 / desc 情境 / cat 分類 / phase 可出現階段 / dept 限定科系
+ *       grade 限定年級 / once 只觸發一次 / req 出現前提 / gt 好結果文案 / bt 壞結果文案
+ *       g 好結果效果 / b 壞結果效果
+ *
+ * 效果約定(重要):
+ *   - 能力值鍵(sta/int/str/skl/rand)填「權重」:2 = 主要效果、1 = 次要效果,
+ *     實際變動量由應對方式的 mag 縮放(見 core/eventcard.js)。
+ *   - 感情線鍵(enc/rep/risk/slot/kill)填實際數值,不縮放。
+ *   - b(壞結果)的能力值一律填正數,由程式套用負號。
+ */
+
+const EVENTS = [
+  /* ================= 學業類 study(9) ================= */
+  {
+    id: 'st01', n: '選課大戰', cat: 'study', phase: ['H1'],
+    desc: '加簽系統開放的那一秒,全系都在搶同一門甜涼的營養學分。',
+    gt: '搶到夢幻課表,整週只有三天要到校。', g: { int: 1, slot: 1 },
+    bt: '被迫修下硬到不行的必修,整學期都在趕作業。', b: { int: 2 },
+  },
+  {
+    id: 'st02', n: '小組報告', cat: 'study', phase: ['H1', 'H2'],
+    desc: '分組名單出來了,組員裡有一個從沒見過的隔壁系女生。',
+    gt: '報告拿了高分,還順便加到了那位組員的聯絡方式。', g: { int: 1, enc: 1 },
+    bt: '組員全部消失,你一個人做完整份報告。', b: { sta: 2, int: 1 },
+  },
+  {
+    id: 'st03', n: '期中考週衝刺', cat: 'study', phase: ['MID'],
+    desc: '圖書館位子早就被搶完了,你在走廊角落找到一張椅子。',
+    gt: '剛好抓到考古題的重點,考卷上的題目你都見過。', g: { int: 2 },
+    bt: '通宵到天亮,考場上腦袋一片空白。', b: { int: 1, sta: 2 },
+  },
+  {
+    id: 'st04', n: '教授的關愛', cat: 'study', phase: ['H1', 'MID'],
+    desc: '那門課的教授在課後叫住了你。',
+    gt: '你被教授看重,期末有加分機會。', g: { int: 2 },
+    bt: '你被盯上了,從此每堂課都被點名回答問題。', b: { int: 1, slot: -1 },
+  },
+  {
+    id: 'st05', n: '蹺課的代價', cat: 'study', phase: ['H1', 'H2'],
+    desc: '早八的課,你在被窩裡做了一個決定。',
+    gt: '那天教授臨時取消上課,你賺到了一整個早上。', g: { sta: 1, slot: 1 },
+    bt: '那天正好點名,而且是計分的。', b: { int: 2 },
+  },
+  {
+    id: 'st06', n: '圖書館通宵', cat: 'study', phase: ['MID'],
+    desc: '圖書館開放到凌晨兩點,你決定待到最後一刻。',
+    gt: '效率高得驚人,一個晚上讀完三章。', g: { int: 2 },
+    bt: '讀到第二頁就睡著,被館員叫醒時已經閉館。', b: { sta: 2 },
+  },
+  {
+    id: 'st07', n: '報告抄襲風波', cat: 'study', phase: ['H2'],
+    desc: '你的報告跟同學的內容有幾段高度雷同,教授把你們兩個都叫去了。',
+    gt: '你證明是對方抄你的,教授當場道歉。', g: { int: 1, rep: -1 },
+    bt: '說不清楚,兩個人一起被扣分,還傳遍全系。', b: { int: 2, rep: 2 },
+  },
+  {
+    id: 'st08', n: '補考通知', cat: 'study', phase: ['H1'],
+    desc: '上學期有一科在及格線邊緣,系辦寄來了補考通知。',
+    gt: '低分飛過,你什麼都沒損失。', g: { int: 1 },
+    bt: '補考也沒過,這學期要重修,課表被塞滿。', b: { int: 1, slot: -1 },
+  },
+  {
+    id: 'st09', n: '學霸的筆記', cat: 'study', phase: ['H1', 'MID'],
+    desc: '系上那位從不缺課的同學,筆記據說是傳說級的。',
+    gt: '你借到了筆記,而且他人意外地好相處。', g: { int: 2 },
+    bt: '你開口的時機不對,對方冷冷地說自己也要用。', b: { int: 1, rep: 1 },
+  },
+
+  /* ================= 體能類 body(8) ================= */
+  {
+    id: 'bd01', n: '健身房辦卡', cat: 'body', phase: ['H1', 'VAC'],
+    desc: '校門口的健身房在招生,年繳有折扣,業務講得口沫橫飛。',
+    gt: '你真的持續去了整個學期,體態明顯不一樣。', g: { str: 2 },
+    bt: '去了三次之後那張卡就躺在皮夾裡沒動過。', b: { str: 1, sta: 1 },
+  },
+  {
+    id: 'bd02', n: '系際盃球賽', cat: 'body', phase: ['H1', 'H2'],
+    desc: '系隊缺人,系籃學長問你要不要上。',
+    gt: '你打出全場最高分,全系都記住了你的名字。', g: { str: 1, enc: 2 },
+    bt: '你在第一節就扭到腳踝,剩下的比賽在場邊看。', b: { sta: 2, str: 1 },
+  },
+  {
+    id: 'bd03', n: '通宵電動', cat: 'body', phase: ['H1', 'H2', 'VAC'],
+    desc: '室友的新遊戲開了連線房,現在是凌晨一點。',
+    gt: '你打出了封號實力,在宿舍地位大幅上升。', g: { sta: 1, enc: 1 },
+    bt: '作息徹底崩壞,接下來一週都在補眠。', b: { sta: 2, int: 1 },
+  },
+  {
+    id: 'bd04', n: '減脂計畫', cat: 'body', phase: ['H1', 'VAC'],
+    desc: '你在鏡子前站了很久,決定從明天開始少吃一餐。',
+    gt: '三個月後照片上的自己判若兩人。', g: { str: 2 },
+    bt: '餓到在課堂上低血糖,還被送去健康中心。', b: { sta: 2 },
+  },
+  {
+    id: 'bd05', n: '早八體育課', cat: 'body', phase: ['H1'],
+    desc: '課表上那堂被排在星期一早上八點的體育必修。',
+    gt: '意外練出了底子,連走樓梯都不喘了。', g: { str: 1, sta: 1 },
+    bt: '你八點爬不起來,學期末發現點名次數不夠。', b: { int: 1, str: 1 },
+  },
+  {
+    id: 'bd06', n: '宿舍消夜文化', cat: 'body', phase: ['H1', 'H2'],
+    desc: '十一點半,室友問了那句「要不要叫鹹酥雞」。',
+    gt: '你控制住了,只吃了幾塊,體態維持得宜。', g: { sta: 1 },
+    bt: '連續吃了一整個學期,牛仔褲扣不起來。', b: { str: 2, sta: 1 },
+  },
+  {
+    id: 'bd07', n: '校園馬拉松', cat: 'body', phase: ['H1', 'VAC'],
+    desc: '學校辦環校路跑,報名費含一件紀念衫。',
+    gt: '你跑完全程,而且終點線那張照片拍得很好。', g: { sta: 2, rep: -1 },
+    bt: '跑到一半在路邊乾嘔,被路過的同學拍到。', b: { sta: 1, rep: 2 },
+  },
+  {
+    id: 'bd08', n: '機車車禍', cat: 'body', phase: ['H1', 'H2', 'VAC'],
+    desc: '雨天的路口,前面那台計程車突然開門。',
+    gt: '你反應夠快,只是虛驚一場,人車都沒事。', g: { sta: 1 },
+    bt: '手臂骨裂,接下來兩個月綁著石膏。', b: { sta: 2, str: 2, slot: -1 },
+  },
+
+  /* ================= 社交感情類 social(15) ================= */
+  {
+    id: 'so01', n: '泳池派對', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '學長租了整座泳池辦派對,據說隔壁系的都會來。你只有一件去年買的泳褲。',
+    gt: '你成了全場焦點,一整晚都有人主動來找你聊天。', g: { skl: 1, enc: 2 },
+    bt: '外型不夠出眾,壓力影響狀態。', b: { int: 1 },
+  },
+  {
+    id: 'so02', n: '聯誼主持', cat: 'social', phase: ['H2'],
+    desc: '系上聯誼的主持人臨時放鴿子,大家的目光都轉向你。',
+    gt: '你把場子控得極好,散場後手機裡多了好幾個聯絡方式。', g: { skl: 2, enc: 2 },
+    bt: '你冷場了三次,從此被封為句點王。', b: { skl: 1, rep: 2 },
+  },
+  {
+    id: 'so03', n: '系烤', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '系上包了河邊的烤肉場,啤酒箱堆得比人高。',
+    gt: '你把氣氛炒到最熱,連學姊都記住你了。', g: { skl: 1, enc: 2 },
+    bt: '你喝過頭在草地上睡著,隔天照片在系群組流傳。', b: { sta: 2, rep: 2 },
+  },
+  {
+    id: 'so04', n: '夜衝', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '半夜十二點,學長騎車來宿舍樓下問你要不要上山看夜景。',
+    gt: '山上那段路你們聊了很多,後座那位對你印象很好。', g: { skl: 2, enc: 1 },
+    bt: '下山時遇到臨檢,還被家裡知道了。', b: { sta: 1, rep: 2 },
+  },
+  {
+    id: 'so05', n: '交友軟體', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '你下載了那個右滑的軟體,大頭貼挑了半個小時。',
+    gt: '配對數量爆炸,一週的行程全滿。', g: { enc: 3 },
+    bt: '見面之後對方發現照片是三年前的,你也發現對方的也是。', b: { sta: 1, rep: 1 },
+  },
+  {
+    id: 'so06', n: '學姊的邀約', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '系上那位傳說中的學姊,私訊問你週末有沒有空。',
+    gt: '那個週末讓你學到的東西,比整個學期加起來都多。', g: { skl: 2, kill: 1 },
+    bt: '她男朋友剛好在她家樓下,而且認得你。', b: { sta: 2, rep: 2, risk: 15 },
+  },
+  {
+    id: 'so07', n: '曖昧的界線', cat: 'social', phase: ['H2'],
+    desc: '你跟那個女生每天聊到凌晨,但誰都沒有把話說開。',
+    gt: '你選對了時機開口,關係一口氣推進。', g: { skl: 1, kill: 1 },
+    bt: '你猶豫了三個星期,她開始跟別人聊到凌晨。', b: { skl: 1, rep: 1 },
+  },
+  {
+    id: 'so08', n: '前任重逢', cat: 'social', phase: ['H1', 'H2'],
+    desc: '你在校門口的早餐店遇到她,她旁邊沒有人。',
+    gt: '舊情復燃了一個晚上,而且沒有後續麻煩。', g: { skl: 1, kill: 1 },
+    bt: '她把你當年做過的事在她朋友圈完整重述了一次。', b: { rep: 3 },
+  },
+  {
+    id: 'so09', n: '告白現場', cat: 'social', phase: ['H2'],
+    desc: '有人在你宿舍樓下擺了蠟燭,圍觀的人已經開始錄影。',
+    gt: '你處理得體,雙方都保住面子,還贏得了風評。', g: { skl: 1, rep: -2 },
+    bt: '影片上了學校的靠北版,標題不太友善。', b: { skl: 1, rep: 3 },
+  },
+  {
+    id: 'so10', n: '撞期危機', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '同一天晚上,兩個人都約了你,而且是同一家餐廳。',
+    gt: '你臨場反應驚人,兩邊都沒發現。', g: { skl: 2 },
+    bt: '兩個人在洗手間門口遇到了,而且她們認識。', b: { rep: 3, risk: 20 },
+  },
+  {
+    id: 'so11', n: '醉後一夜', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '慶功宴散場,她說她不想回家,你也喝了不少。',
+    gt: '隔天早上兩個人都笑著說這是個好主意。', g: { skl: 2, kill: 1 },
+    bt: '隔天早上她完全不記得你是誰,場面很難看。', b: { sta: 2, rep: 3, risk: 25 },
+  },
+  {
+    id: 'so12', n: '社團學妹', cat: 'social', phase: ['H2'],
+    desc: '迎新那天,有個學妹一直站在你旁邊問問題。',
+    gt: '你耐心帶她認識社團,關係自然而然地拉近。', g: { skl: 1, enc: 1 },
+    bt: '你太積極了,她跟社長反映有人讓她不太自在。', b: { rep: 3 },
+  },
+  {
+    id: 'so13', n: '系對的誘惑', cat: 'social', phase: ['H2'],
+    desc: '系上那對眾所皆知的情侶,女方最近一直找你聊心事。',
+    gt: '你保持了距離,還因此被全系認為是可靠的人。', g: { skl: 1, rep: -2 },
+    bt: '你沒保持距離,而且整個系都知道了。', b: { rep: 4, risk: 20, kill: 1 },
+  },
+  {
+    id: 'so14', n: '校外聯誠', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '隔壁學校的聯誠活動,說是要來三十個人。',
+    gt: '對方那群人裡有好幾個對你有興趣。', g: { skl: 1, enc: 3 },
+    bt: '你們系的人數湊不齊,活動取消,還被對方笑。', b: { rep: 1, slot: -1 },
+  },
+  {
+    id: 'so15', n: '夜店初體驗', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '學長說要帶你去見識一下,門口那個保鑣看了你一眼。',
+    gt: '那一晚你終於明白了規則怎麼運作。', g: { skl: 2, enc: 2 },
+    bt: '你在角落站了三個小時,只花掉了低消。', b: { sta: 1, skl: 1 },
+  },
+
+  /* ================= 生活類 life(6) ================= */
+  {
+    id: 'lf01', n: '搬出宿舍', cat: 'life', phase: ['H1', 'VAC'],
+    desc: '宿舍抽籤沒中,你在學校後面看了三間房。',
+    gt: '你找到一間便宜又安靜的房子,而且方便帶人回家。', g: { skl: 1, slot: 1 },
+    bt: '房東說的「安靜」是指隔音差到聽得見隔壁翻身。', b: { sta: 2, int: 1 },
+  },
+  {
+    id: 'lf02', n: '室友衝突', cat: 'life', phase: ['H1', 'H2'],
+    desc: '室友的洗碗槽已經三個星期沒動過了。',
+    gt: '你把話講開,兩個人反而變成好朋友。', g: { sta: 1, enc: 1 },
+    bt: '冷戰整個學期,你每天回去都不想開門。', b: { sta: 2, int: 1 },
+  },
+  {
+    id: 'lf03', n: '家裡斷金援', cat: 'life', phase: ['H1'],
+    desc: '家裡打電話來,說這學期的生活費要自己想辦法。',
+    gt: '你很快找到打工,而且時薪比想像中好。', g: { sta: 1, slot: 1 },
+    bt: '你整個學期都在為錢煩惱,什麼都沒心情做。', b: { int: 1, slot: -1 },
+  },
+  {
+    id: 'lf04', n: '機車被拖吊', cat: 'life', phase: ['H1', 'H2'],
+    desc: '你只停了十分鐘,回來的時候那個位子空了。',
+    gt: '你找到人幫忙,只繳了最低的罰款。', g: { sta: 1 },
+    bt: '拖吊費加罰單,這個月的社交預算全沒了。', b: { sta: 1, slot: -1 },
+  },
+  {
+    id: 'lf05', n: '系服訂做', cat: 'life', phase: ['H1'],
+    desc: '系服設計投票,你的圖案意外入圍了。',
+    gt: '你的設計被選中,全系都穿著你畫的圖走來走去。', g: { rep: -2, enc: 1 },
+    bt: '你的設計被做成迷因,而且署名很清楚。', b: { rep: 2 },
+  },
+  {
+    id: 'lf06', n: '健康檢查', cat: 'life', phase: ['H1'],
+    desc: '學校的年度健康檢查,你已經拖了兩年。',
+    gt: '各項數值都很漂亮,你對自己的身體更有信心了。', g: { sta: 1, str: 1 },
+    bt: '報告上有幾個紅字,醫生要你回診追蹤。', b: { sta: 2, risk: 10 },
+  },
+
+  /* ================= 打工類 work(4) ================= */
+  {
+    id: 'wk01', n: '家教打工', cat: 'work', phase: ['H1', 'H2'],
+    desc: '學長轉介的家教,時薪很好,學生是高三生。',
+    gt: '你教得好,學生成績進步,家長還介紹了新學生。', g: { int: 1, slot: 1 },
+    bt: '學生完全不配合,你每週都在浪費兩個小時。', b: { sta: 2, slot: -1 },
+  },
+  {
+    id: 'wk02', n: '酒吧打工', cat: 'work', phase: ['H2', 'VAC'],
+    desc: '那間店在徵人,老闆說晚上十點到凌晨三點。',
+    gt: '你在那裡認識的人,比在學校四年認識的都多。', g: { skl: 1, enc: 3 },
+    bt: '作息完全崩掉,白天的課全都沒去。', b: { int: 2, sta: 1 },
+  },
+  {
+    id: 'wk03', n: '便利商店大夜', cat: 'work', phase: ['H1', 'VAC'],
+    desc: '你家樓下那間在徵大夜,時薪多三十塊。',
+    gt: '大夜班很閒,你把整學期的書都讀完了。', g: { int: 2 },
+    bt: '你的生理時鐘壞了,連假日都在凌晨清醒。', b: { sta: 2, str: 1 },
+  },
+  {
+    id: 'wk04', n: '展場工讀', cat: 'work', phase: ['VAC'],
+    desc: '有人問你要不要去展場站三天,包便當。',
+    gt: '三天賺到一個月的生活費,還被主辦問要不要長期合作。', g: { slot: 2 },
+    bt: '站了三天,腰痠背痛,回家躺了一個禮拜。', b: { sta: 2, str: 1 },
+  },
+
+  /* ================= 風險類 risk(6) — 需風評達門檻才進卡池 ================= */
+  {
+    id: 'rk01', n: '靠北版點名', cat: 'risk', phase: ['H2'], req: { rep: 6 },
+    desc: '學校的匿名版上有一篇文章,雖然沒指名,但講的細節只有你符合。',
+    gt: '你冷處理,三天後沒人記得這件事。', g: { rep: -1 },
+    bt: '你跳出來解釋,結果被貼出更多細節。', b: { rep: 3 },
+  },
+  {
+    id: 'rk02', n: '流言四起', cat: 'risk', phase: ['H1', 'H2'], req: { rep: 6 },
+    desc: '你發現這學期主動找你聊天的人變少了。',
+    gt: '你花了一個學期低調行事,風評慢慢洗回來。', g: { rep: -3, slot: -1 },
+    bt: '你照原本的方式繼續,結果傳得更誇張。', b: { rep: 2, risk: 10 },
+  },
+  {
+    id: 'rk03', n: '被列入黑名單', cat: 'risk', phase: ['H2'], req: { rep: 6 },
+    desc: '有幾個社團的活動,你發現自己沒被邀請。',
+    gt: '你找到願意幫你說話的人,順利解除誤會。', g: { rep: -2 },
+    bt: '你被三個社團同時封鎖,能去的活動變少了。', b: { rep: 1, slot: -2 },
+  },
+  {
+    id: 'rk04', n: '意外的訊息', cat: 'risk', phase: ['H1', 'H2', 'VAC'], req: { rep: 6 },
+    desc: '一個你以為不會再聯絡的人,傳來一句「我們需要談談」。',
+    gt: '是虛驚一場,而且對方態度還不錯。', g: { sta: 1 },
+    bt: '事情比你想的複雜,而且需要處理很久。', b: { sta: 2, slot: -2, risk: 15 },
+  },
+  {
+    id: 'rk05', n: '對方的男友', cat: 'risk', phase: ['H2', 'VAC'], req: { rep: 6 },
+    desc: '有個沒見過的男生在系館外面等你,他說他知道你是誰。',
+    gt: '你把事情講清楚,對方雖然不高興但走了。', g: { sta: 1, rep: 1 },
+    bt: '場面失控,兩個人都被記了申誡。', b: { sta: 2, int: 1, rep: 3 },
+  },
+  {
+    id: 'rk06', n: '校規約談', cat: 'risk', phase: ['H2'], req: { rep: 6 },
+    desc: '學務處寄來一封信,要你某天下午過去一趟。',
+    gt: '你態度良好,只被口頭告誡。', g: { rep: 1 },
+    bt: '你被記了警告,而且通知寄回家裡。', b: { int: 2, rep: 3, slot: -1 },
+  },
+
+  /* ================= 寒暑假限定 vacation(4) ================= */
+  {
+    id: 'vc01', n: '環島', cat: 'life', phase: ['VAC'],
+    desc: '有人在群組裡揪環島,九天,騎車。',
+    gt: '九天下來你曬黑了、瘦了,還跟同行的人變得很熟。', g: { sta: 2, str: 1, enc: 2 },
+    bt: '第三天你的車在山上壞掉,剩下六天在等零件。', b: { sta: 2, slot: -1 },
+  },
+  {
+    id: 'vc02', n: '打工度假', cat: 'work', phase: ['VAC'],
+    desc: '仲介說去那邊三個月,回來能存到一筆錢。',
+    gt: '你存到了錢,英文也變好了,還交了幾個外國朋友。', g: { int: 1, skl: 1, slot: 1 },
+    bt: '你被抽了兩層仲介費,回來的時候比去的時候還窮。', b: { sta: 2, slot: -1 },
+  },
+  {
+    id: 'vc03', n: '返鄉的壓力', cat: 'life', phase: ['VAC'],
+    desc: '過年回家,長輩問了那個問題。',
+    gt: '你應對得體,還被親戚介紹了幾個對象。', g: { enc: 2 },
+    bt: '你被念了整個年假,連初三都不想出房門。', b: { sta: 2, int: 1 },
+  },
+  {
+    id: 'vc04', n: '系隊移地訓練', cat: 'body', phase: ['VAC'],
+    desc: '系隊要去南部集訓兩個星期,住學校宿舍。',
+    gt: '兩個星期的高強度訓練,你整個人不一樣了。', g: { str: 2, sta: 1 },
+    bt: '你在第一天的體能測驗就掛了,剩下的時間在打雜。', b: { sta: 2, rep: 1 },
+  },
+];
+
+const EVENT_BY_ID = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
+const EVENT_COUNT = EVENTS.length;
+
+/* ================================================================
+   src/core/state.js
+   ================================================================ */
+/* 遊戲狀態建立 */
+
+
+
+
+
+/* 生成潛力天花板:體力/學力/肌力隨機打亂後依序給上限範圍;技巧力另計
+ *
+ * 重要:天賦分佈雖然隨機,但學力與肌力的上限必須保證能達到畢業門檻,
+ * 否則玩家會在開局就注定畢不了業(例如數學系大四下需要學力 65,
+ * 若學力上限抽到最低那一檔的 48,無論怎麼玩都不可能過關)。
+ * 因此這裡對這兩項設一個地板值:最後一學期的門檻再加上緩衝。
+ */
+function makePotential(rng, dept) {
+  const keys = rng.shuffle(['sta', 'int', 'str']);
+  const pot = {};
+  keys.forEach((k, i) => {
+    const [lo, hi] = CONFIG.potRanges[i];
+    pot[k] = rng.int(lo, hi);
+  });
+  pot.skl = rng.int(CONFIG.potSkl[0], CONFIG.potSkl[1]);
+
+  /* 保證畢業可能性 */
+  const last = CONFIG.totalSemesters - 1;
+  const buf = CONFIG.potExamBuffer;
+  pot.int = Math.max(pot.int, dept.examInt[last] + buf);
+  pot.str = Math.max(pot.str, dept.examStr[last] + buf);
+
+  return pot;
+}
+
+function newState({ name, dept, rng }) {
+  const d = DEPTS[dept];
+  if (!d) throw new Error(`未知科系:${dept}`);
+
+  /* 起始能力:基準值加上隨機浮動;技巧力固定 1(已定案,不浮動) */
+  const ab = {};
+  for (const k of ['sta', 'int', 'str']) {
+    const j = rng.int(-CONFIG.startJitter, CONFIG.startJitter);
+    ab[k] = Math.max(1, d.start[k] + j);
+  }
+  ab.skl = d.start.skl;   /* 一律為 1 */
+
+  const pot = makePotential(rng, d);
+  /* 保險:潛力上限不得低於起始值 */
+  for (const k of Object.keys(ab)) pot[k] = Math.max(pot[k], ab[k]);
+
+  return {
+    name,
+    dept,
+    deptName: d.name,
+    age: CONFIG.startAge,
+    year: CONFIG.startYear,
+    semester: 1,                /* 1 ~ 8 */
+    phaseIndex: 0,              /* 對應 PHASES 陣列 */
+    ab,
+    pot,
+    sklFrac: 0,                 /* 技巧力的小數累積(失敗給 0.5,滿 1 才進位) */
+
+    kills: 0,                   /* 生涯人斬 */
+    conquered: [],              /* 已攻略對象姓名(避免重複計數) */
+    rep: 0,                     /* 校內風評,越高越難攻略 */
+    risk: 0,                    /* 當學期意外風險累積 */
+
+    slots: 0,                   /* 當學期剩餘社交活動場次 */
+    bonusSlots: 0,              /* 骰子兌換與事件卡給的額外場次 */
+    encBonus: 0,                /* 事件卡給的額外邂逅對象數 */
+
+    mentorFound: false,         /* 是否已找到老學長 */
+    mentorSessionsLeft: 0,      /* 剩餘帶浪次數 */
+    mentorDone: false,          /* 三次帶浪是否已用完 */
+
+    usedEventIds: [],           /* 已觸發的一次性事件 */
+    semesterEventIds: [],       /* 當學期已抽過的事件(避免同學期重複) */
+
+    log: [],                    /* 敘事紀錄 */
+    stats: {                    /* 統計:給結局與平衡分析用 */
+      killsBySemester: [],
+      attempts: 0,
+      successes: 0,
+      activitiesDone: 0,
+    },
+
+    over: false,
+    overReason: null,           /* 'expelled' 退學 / 'graduated' 畢業 */
+    ending: null,
+  };
+}
+
+/* 能力加值(受潛力上限限制),回傳實際變動量 */
+function addAb(S, key, delta) {
+  const before = S.ab[key];
+  const cap = S.pot[key];
+  let next = before + delta;
+  if (delta > 0) next = Math.min(next, cap);
+  next = Math.max(1, next);
+  S.ab[key] = next;
+  return next - before;
+}
+
+/* 技巧力專用:支援小數累積(失敗嘗試給 0.5) */
+function addSkl(S, amount) {
+  S.sklFrac += amount;
+  const whole = Math.floor(S.sklFrac);
+  if (whole > 0) {
+    S.sklFrac -= whole;
+    return addAb(S, 'skl', whole);
+  }
+  return 0;
+}
+
+/* 綜合值:給記分板顯示用 */
+function ovr(S) {
+  const { sta, int: iq, str, skl } = S.ab;
+  return Math.round((sta + iq + str + skl) / 4);
+}
+
+/* ================================================================
+   src/core/exam.js
+   ================================================================ */
+/* 期末考與期中預警判定 */
+
+
+
+/* 期末考:學力與肌力都要達標,任一未達標即退學 */
+function runExam(S) {
+  const th = examThreshold(S.dept, S.semester);
+  const failInt = S.ab.int < th.int;
+  const failStr = S.ab.str < th.str;
+  const passed = !failInt && !failStr;
+
+  const failed = [];
+  if (failInt) failed.push({ key: 'int', name: '學力', have: S.ab.int, need: th.int });
+  if (failStr) failed.push({ key: 'str', name: '肌力', have: S.ab.str, need: th.str });
+
+  return { passed, threshold: th, failed };
+}
+
+/* 期中預警:計算距離本學期期末門檻還差多少 */
+function midtermWarning(S) {
+  const th = examThreshold(S.dept, S.semester);
+  const gapInt = th.int - S.ab.int;
+  const gapStr = th.str - S.ab.str;
+  const warnings = [];
+  if (gapInt > 0) warnings.push({ key: 'int', name: '學力', gap: gapInt, need: th.int, have: S.ab.int });
+  if (gapStr > 0) warnings.push({ key: 'str', name: '肌力', gap: gapStr, need: th.str, have: S.ab.str });
+  return { threshold: th, warnings, safe: warnings.length === 0 };
+}
+
+/* ================================================================
+   src/core/conquest.js
+   ================================================================ */
+/* 攻略判定 — 核心公式
+ * 依規格草案 5.5 節:
+ *   成功率(%) = 技巧力×0.6 + 肌力×0.3 + 體力×0.1 − 對象難度修正 − 風評修正
+ */
+
+
+
+
+
+/* 計算對某位對象的成功率(百分比) */
+function conquestRate(S, difficulty) {
+  const w = CONFIG.conquestWeights;
+  const base =
+    S.ab.skl * w.skl + S.ab.str * w.str + S.ab.sta * w.sta + S.ab.int * w.int;
+  const diffPen = CONFIG.difficultyPenalty[difficulty] ?? 0;
+  const repPen = Math.floor(Math.max(0, S.rep) / CONFIG.repPenaltyDiv);
+  const raw = base - diffPen - repPen;
+  return clamp(raw, CONFIG.conquestRateMin, CONFIG.conquestRateMax);
+}
+
+/* 對一位對象進行一次攻略判定並套用結果 */
+function attemptConquest(S, target, rng) {
+  const rate = conquestRate(S, target.difficulty);
+  const success = rng.chance(rate);
+
+  S.stats.attempts++;
+
+  if (success) {
+    S.stats.successes++;
+
+    /* 同一位對象只計數一次 */
+    const isNew = !S.conquered.includes(target.name);
+    if (isNew) {
+      S.kills++;
+      S.conquered.push(target.name);
+      S.rep += CONFIG.repPerConquest;
+    }
+
+    /* 技巧力成長:超過軟上限後減半 */
+    const gain =
+      S.ab.skl >= CONFIG.sklSoftCap ? CONFIG.sklOnSuccess / 2 : CONFIG.sklOnSuccess;
+    addSkl(S, gain);
+
+    return { success: true, rate, target, counted: isNew, sklGain: gain };
+  }
+
+  /* 失敗也給少量經驗,避免開局死鎖 */
+  addSkl(S, CONFIG.sklOnFail);
+  return { success: false, rate, target, counted: false, sklGain: CONFIG.sklOnFail };
+}
+
+/* ================================================================
+   src/core/activity.js
+   ================================================================ */
+/* 社交活動:場次計算、可用活動過濾、邂逅對象生成、活動結算 */
+
+
+
+
+
+
+
+/* 該學期的社交活動總場次 = 基礎(依體力) + 骰子兌換與事件卡的加成 */
+function baseSlots(S) {
+  return CONFIG.baseSlotConst + Math.floor(S.ab.sta / CONFIG.slotStaDiv);
+}
+
+function totalSlots(S) {
+  return Math.max(0, baseSlots(S) + S.bonusSlots);
+}
+
+/* 列出所有活動並標記是否可參加 */
+function listActivities(S) {
+  const th = examThreshold(S.dept, S.semester);
+  return ACTIVITIES.map((act) => {
+    const ok = activityAvailable(act, S.ab, th.int);
+    return {
+      ...act,
+      available: ok,
+      lockReason: ok ? '' : activityLockReason(act, th.int),
+    };
+  });
+}
+
+/* 生成本場活動邂逅到的對象 */
+function makeTargets(act, S, rng) {
+  const n = act.enc + S.encBonus;
+  S.encBonus = 0;                      /* 邂逅加成一次用完 */
+  const targets = [];
+  for (let i = 0; i < n; i++) {
+    /* 難度以活動基準為主,加入隨機浮動:有機會遇到更好或更差的對象 */
+    let difficulty = act.diff;
+    const roll = rng.next();
+    if (roll < 0.15) {
+      difficulty = act.diff === 'high' ? 'mid' : 'low';
+    } else if (roll > 0.85) {
+      difficulty = act.diff === 'low' ? 'mid' : 'high';
+    }
+    targets.push({ name: makeName(rng), difficulty });
+  }
+  return targets;
+}
+
+/* 執行一場活動:生成對象、逐一攻略判定、累積風險 */
+function runActivity(S, actId, rng) {
+  const act = ACTIVITIES.find((a) => a.id === actId);
+  if (!act) throw new Error(`未知活動:${actId}`);
+
+  const th = examThreshold(S.dept, S.semester);
+  if (!activityAvailable(act, S.ab, th.int)) {
+    throw new Error(`活動門檻不足:${act.name}`);
+  }
+
+  S.stats.activitiesDone++;
+
+  /* 風險累積 */
+  if (CONFIG.riskFromActivity) {
+    S.risk += CONFIG.activityRiskValue[act.risk] || 0;
+  }
+
+  const targets = makeTargets(act, S, rng);
+  const results = targets.map((t) => attemptConquest(S, t, rng));
+  const gained = results.filter((r) => r.counted).length;
+
+  return { activity: act, results, gained };
+}
+
+/* ================================================================
+   src/core/eventcard.js
+   ================================================================ */
+/* 事件卡:抽取與效果結算 */
+
+
+
+
+
+
+const ABILITY_KEYS = ['sta', 'int', 'str', 'skl', 'rand'];
+
+/* 卡片是否符合當前狀態的出現條件 */
+function cardEligible(card, S, phase) {
+  if (!card.phase.includes(phase)) return false;
+  if (card.dept && !card.dept.includes(S.dept)) return false;
+  if (card.grade && !card.grade.includes(gradeOf(S.semester))) return false;
+  if (card.once && S.usedEventIds.includes(card.id)) return false;
+  if (S.semesterEventIds.includes(card.id)) return false;
+
+  /* req:能力門檻或風評門檻 */
+  if (card.req) {
+    for (const [k, v] of Object.entries(card.req)) {
+      if (k === 'rep') {
+        if (S.rep < v) return false;
+      } else if ((S.ab[k] ?? 0) < v) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function eligibleCards(S, phase) {
+  return EVENTS.filter((c) => cardEligible(c, S, phase));
+}
+
+/* 抽一張卡 */
+function drawCard(S, phase, rng) {
+  const pool = eligibleCards(S, phase);
+  if (pool.length === 0) return null;
+  const card = rng.pick(pool);
+  S.semesterEventIds.push(card.id);
+  if (card.once) S.usedEventIds.push(card.id);
+  return card;
+}
+
+/* 依應對方式的幅度縮放能力值效果
+ * 權重 2 = 主要效果 → 變動量等於 mag
+ * 權重 1 = 次要效果 → 變動量等於 ceil(mag / 2)
+ */
+function scaleAbility(weight, mag) {
+  if (weight >= 2) return mag;
+  return Math.ceil(mag / 2);
+}
+
+/* 套用效果物件。sign 為 +1(好結果)或 -1(壞結果) */
+function applyEffects(S, effects, mag, sign, rng) {
+  const applied = [];
+  for (const [key, raw] of Object.entries(effects || {})) {
+    if (ABILITY_KEYS.includes(key)) {
+      const amount = scaleAbility(raw, mag) * sign;
+      let target = key;
+      if (key === 'rand') {
+        target = rng.pick(['sta', 'int', 'str']);   /* 隨機一項,不含技巧力 */
+      }
+      const actual = target === 'skl' ? addSkl(S, amount) : addAb(S, target, amount);
+      applied.push({ key: target, amount, actual });
+    } else {
+      /* 感情線與系統鍵值:不縮放,而且正負號直接寫在卡片資料裡,
+       * 不隨好壞結果翻轉(例如壞結果的 rep:2 就是風評惡化 2 點)。 */
+      const v = raw;
+      switch (key) {
+        case 'enc':  S.encBonus += v; break;
+        case 'rep':  S.rep = Math.max(0, S.rep + v); break;
+        case 'risk': S.risk += v; break;
+        case 'slot': S.bonusSlots += v; break;
+        case 'kill':
+          S.kills += v;
+          S.rep = Math.max(0, S.rep + CONFIG.repPerConquest * v);
+          break;
+        default: break;
+      }
+      applied.push({ key, amount: v, actual: v });
+    }
+  }
+  return applied;
+}
+
+/* 結算一張卡:玩家選擇 response('bold'|'normal'|'safe') */
+function resolveCard(S, card, response, rng) {
+  const r = CONFIG.responses[response];
+  if (!r) throw new Error(`未知應對方式:${response}`);
+
+  const success = rng.chance(r.rate);
+  const effects = success ? card.g : card.b;
+  const applied = applyEffects(S, effects, r.mag, success ? 1 : -1, rng);
+
+  return {
+    card,
+    response,
+    responseLabel: r.label,
+    success,
+    text: success ? card.gt : card.bt,
+    applied,
+  };
+}
+
+/* 強制以「照常執行」的幅度套用壞結果(意外事件用) */
+function forceBadOutcome(S, card, rng) {
+  const mag = CONFIG.responses.normal.mag;
+  const applied = applyEffects(S, card.b, mag, -1, rng);
+  return { card, success: false, forced: true, text: card.bt, applied };
+}
+
+function eventsForPhase(phase) {
+  return CONFIG.eventsPerPhase[phase] ?? 0;
+}
+
+/* ================================================================
+   src/core/risk.js
+   ================================================================ */
+/* 風評與意外事件 */
+
+
+
+
+
+
+/* 當學期意外事件的觸發機率 */
+function accidentChance(S) {
+  return clamp(S.risk, 0, CONFIG.riskCapPercent);
+}
+
+/* 學期結束前判定意外事件。觸發則強制結算一張風險類卡片的壞結果 */
+function rollAccident(S, rng) {
+  const p = accidentChance(S);
+  if (!rng.chance(p)) return { triggered: false, chance: p };
+
+  const pool = EVENTS.filter((c) => c.cat === 'risk');
+  if (pool.length === 0) return { triggered: false, chance: p };
+
+  const card = rng.pick(pool);
+  const outcome = forceBadOutcome(S, card, rng);
+  return { triggered: true, chance: p, outcome };
+}
+
+/* 學期結算:風評自然消退、風險歸零 */
+function endOfSemesterDecay(S) {
+  S.rep = Math.max(0, S.rep - CONFIG.repDecayPerSemester);
+  S.risk = 0;
+}
+
+/* ================================================================
+   src/core/ending.js
+   ================================================================ */
+/* 結局判定 — 依規格草案 8.2 節的雙軸設計
+ * 主軸:人斬總數(六級);副軸:畢業狀態
+ */
+
+
+
+function tierOf(kills) {
+  for (const t of CONFIG.endingTiers) {
+    if (kills >= t.min) return t;
+  }
+  return CONFIG.endingTiers[CONFIG.endingTiers.length - 1];
+}
+
+const GRAD_TEXT = {
+  graduated: '你順利拿到了畢業證書。',
+  expelled: '你的學生證在第 %s 個學期就被收回了。',
+};
+
+function makeEnding(S) {
+  const tier = tierOf(S.kills);
+  const graduated = S.overReason === 'graduated';
+  /* 畢業時 semester 已經被推到第 9 個(超出總數才觸發畢業),
+   * 顯示用的「就讀學期數」要夾回總學期數,否則會出現「9 / 8」。 */
+  const semestersPlayed = Math.min(S.semester, CONFIG.totalSemesters);
+
+  let headline;
+  if (graduated) {
+    headline = `${tier.name}・順利畢業`;
+  } else {
+    headline = `${tier.name}・中途退學`;
+  }
+
+  const gradLine = graduated
+    ? GRAD_TEXT.graduated
+    : GRAD_TEXT.expelled.replace('%s', String(semestersPlayed));
+
+  return {
+    tier: tier.key,
+    tierName: tier.name,
+    headline,
+    graduated,
+    kills: S.kills,
+    semestersPlayed,
+    ab: { ...S.ab },
+    rep: S.rep,
+    conquered: S.conquered.slice(),
+    mentorFound: S.mentorFound,
+    gradLine,
+    stats: {
+      ...S.stats,
+      successRate: S.stats.attempts > 0
+        ? Math.round((S.stats.successes / S.stats.attempts) * 100)
+        : 0,
+    },
+  };
+}
+
+/* ================================================================
+   src/core/engine.js
+   ================================================================ */
+/* 學期流程狀態機
+ *
+ * 設計原則:引擎不碰 DOM、不使用回呼。它持有一個「當前待處理事項」(pending),
+ * 外部(畫面或測試程式)讀取 pending、送出 submit(action),引擎推進到下一個 pending。
+ * 這讓測試程式與真實畫面用完全相同的方式驅動遊戲。
+ *
+ * pending 的型別:
+ *   { type:'dice',     dice:[n,n,n], assigned:[] }        玩家分配骰子
+ *   { type:'event',    card, options:[...] }               玩家選擇應對方式
+ *   { type:'midterm',  warning }                           期中預警,只需確認
+ *   { type:'activity', list, slotsLeft, mentor? }           玩家選擇社交活動
+ *   { type:'mentor',   session }                            老學長帶浪,只需確認
+ *   { type:'exam',     result }                             期末考結果,只需確認
+ *   { type:'accident', outcome }                            意外事件,只需確認
+ *   { type:'gameover', ending }                             結束
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+function createGame({ name, dept, seed }) {
+  const rng = createRng(seed);
+  const S = newState({ name, dept, rng });
+
+  /* 內部佇列:當前階段還要處理幾件事 */
+  let queue = [];
+  let pending = null;
+
+  const game = {
+    get state() { return S; },
+    get pending() { return pending; },
+    get seed() { return seed; },
+    log: S.log,
+  };
+
+  /* ---------- 敘事紀錄 ---------- */
+  function push(kind, title, text, extra = {}) {
+    S.log.push({
+      semester: S.semester,
+      semesterName: SEMESTER_NAMES[S.semester - 1],
+      phase: PHASES[S.phaseIndex],
+      kind, title, text, ...extra,
+    });
+  }
+  game.push = push;
+
+  /* ---------- 階段內容建構 ---------- */
+
+  function enterPhase() {
+    const phase = PHASES[S.phaseIndex];
+    queue = [];
+
+    if (phase === 'H1') {
+      /* 學期開始:重設當學期狀態 */
+      S.semesterEventIds = [];
+      S.bonusSlots = 0;
+      S.encBonus = 0;
+      push('info', `${SEMESTER_NAMES[S.semester - 1]} 開始`,
+        `${S.year} 年，${S.deptName} ${S.name}，${gradeOf(S.semester)} 年級。`);
+      queue.push({ kind: 'dice' });
+      for (let i = 0; i < eventsForPhase('H1'); i++) queue.push({ kind: 'event' });
+    } else if (phase === 'MID') {
+      queue.push({ kind: 'midterm' });
+      for (let i = 0; i < eventsForPhase('MID'); i++) queue.push({ kind: 'event' });
+    } else if (phase === 'H2') {
+      /* 社交活動期:場次用完為止 */
+      S.slots = totalSlots(S);
+      for (let i = 0; i < eventsForPhase('H2'); i++) queue.push({ kind: 'event' });
+      queue.push({ kind: 'activityLoop' });
+      queue.push({ kind: 'accident' });
+    } else if (phase === 'FIN') {
+      queue.push({ kind: 'exam' });
+    } else if (phase === 'VAC') {
+      for (let i = 0; i < eventsForPhase('VAC'); i++) queue.push({ kind: 'event' });
+      queue.push({ kind: 'endSemester' });
+    }
+
+    step();
+  }
+
+  /* ---------- 佇列推進 ---------- */
+
+  function step() {
+    if (S.over) { pending = { type: 'gameover', ending: S.ending }; return; }
+
+    if (queue.length === 0) {
+      /* 本階段結束,進入下一階段 */
+      S.phaseIndex++;
+      if (S.phaseIndex >= PHASES.length) {
+        S.phaseIndex = 0;
+        S.semester++;
+        S.age = CONFIG.startAge + Math.floor((S.semester - 1) / 2);
+        S.year = CONFIG.startYear + Math.floor((S.semester - 1) / 2);
+        if (S.semester > CONFIG.totalSemesters) {
+          finish('graduated');
+          return;
+        }
+      }
+      enterPhase();
+      return;
+    }
+
+    const item = queue.shift();
+
+    switch (item.kind) {
+      case 'dice': {
+        const dice = [];
+        for (let i = 0; i < CONFIG.dicePerSemester; i++) {
+          dice.push(rng.int(1, CONFIG.diceFaces));
+        }
+        pending = { type: 'dice', dice, remaining: dice.slice(), assigned: [] };
+        return;
+      }
+      case 'event': {
+        const phase = PHASES[S.phaseIndex];
+        const card = drawCard(S, phase, rng);
+        if (!card) { step(); return; }     /* 卡池空了就跳過 */
+        pending = {
+          type: 'event',
+          card,
+          options: Object.entries(CONFIG.responses).map(([k, v]) => ({
+            key: k, label: v.label, rate: v.rate, mag: v.mag,
+          })),
+        };
+        return;
+      }
+      case 'midterm': {
+        const w = midtermWarning(S);
+        if (w.safe) {
+          push('good', '期中考', '兩項門檻都已達標，這學期期末沒有懸念。');
+        } else {
+          const t = w.warnings
+            .map((x) => `${x.name} 還差 ${x.gap} 點（目前 ${x.have}，期末需要 ${x.need}）`)
+            .join('；');
+          push('bad', '期中考警訊', `照這個進度期末會過不了：${t}。`);
+        }
+        pending = { type: 'midterm', warning: w };
+        return;
+      }
+      case 'activityLoop': {
+        openActivity();
+        return;
+      }
+      case 'accident': {
+        const r = rollAccident(S, rng);
+        if (r.triggered) {
+          push('bad', `意外事件：${r.outcome.card.n}`, r.outcome.text,
+            { applied: r.outcome.applied, chance: r.chance });
+          pending = { type: 'accident', outcome: r.outcome, chance: r.chance };
+          return;
+        }
+        step();
+        return;
+      }
+      case 'exam': {
+        const result = runExam(S);
+        if (result.passed) {
+          push('good', '期末考', `學力 ${S.ab.int}／需要 ${result.threshold.int}，肌力 ${S.ab.str}／需要 ${result.threshold.str}。過了。`);
+          pending = { type: 'exam', result };
+        } else {
+          const t = result.failed
+            .map((f) => `${f.name} ${f.have}（需要 ${f.need}）`).join('、');
+          push('bad', '期末考不及格', `${t}。你被二一了。`);
+          finish('expelled');
+        }
+        return;
+      }
+      case 'endSemester': {
+        S.stats.killsBySemester.push(
+          S.kills - S.stats.killsBySemester.reduce((a, b) => a + b, 0),
+        );
+        endOfSemesterDecay(S);
+        step();
+        return;
+      }
+      default:
+        step();
+        return;
+    }
+  }
+
+  /* ---------- 社交活動 ---------- */
+
+  function openActivity() {
+    /* 老學長帶浪優先提示(找到之後才會出現) */
+    if (S.mentorFound && S.mentorSessionsLeft > 0 && S.slots >= CONFIG.mentorSlotCost) {
+      const idx = CONFIG.mentorSessions - S.mentorSessionsLeft;
+      pending = {
+        type: 'activity',
+        list: listActivities(S),
+        slotsLeft: S.slots,
+        mentor: {
+          available: true,
+          session: MENTOR_SESSIONS[idx],
+          sklGain: CONFIG.mentorSklPerSession,
+          cost: CONFIG.mentorSlotCost,
+        },
+      };
+      return;
+    }
+
+    if (S.slots <= 0) { step(); return; }
+
+    pending = {
+      type: 'activity',
+      list: listActivities(S),
+      slotsLeft: S.slots,
+      mentor: { available: false },
+    };
+  }
+
+  /* ---------- 老學長發現判定 ---------- */
+
+  function checkMentor(actId) {
+    if (S.mentorFound) return null;
+    if (gradeOf(S.semester) !== 1) return null;     /* 只在大一出現 */
+    const m = MENTORS[S.dept];
+    if (!m || m.activity !== actId) return null;
+
+    S.mentorFound = true;
+    S.mentorSessionsLeft = CONFIG.mentorSessions;
+    push('gold', `隱藏角色：${m.name}`, `${m.desc}\n${m.result}`);
+    return m;
+  }
+
+  /* ---------- 玩家動作 ---------- */
+
+  game.submit = function submit(action) {
+    if (!pending) throw new Error('目前沒有待處理事項');
+
+    switch (pending.type) {
+      case 'dice': {
+        /* action: { assignments: [{die:index, to:'sta'|'int'|'str'|'social'}, ...] } */
+        const { assignments } = action;
+        if (!Array.isArray(assignments) || assignments.length !== pending.dice.length) {
+          throw new Error(`必須分配全部 ${pending.dice.length} 顆骰`);
+        }
+        const parts = [];
+        assignments.forEach((a) => {
+          const pip = pending.dice[a.die];
+          if (pip === undefined) throw new Error(`骰子索引無效:${a.die}`);
+          if (a.to === 'social') {
+            const gain = Math.floor(pip / CONFIG.slotPerDiceDiv);
+            S.bonusSlots += gain;
+            parts.push(`${pip} 點換社交場次 +${gain}`);
+          } else if (CONFIG.allocatableAbilities.includes(a.to)) {
+            const actual = addAb(S, a.to, pip);
+            const names = { sta: '體力', int: '學力', str: '肌力' };
+            parts.push(`${names[a.to]} +${actual}${actual < pip ? '（已達上限）' : ''}`);
+          } else {
+            throw new Error(`不可分配的目標:${a.to}`);
+          }
+        });
+        push('info', '訓練成果', parts.join('，') + '。');
+        step();
+        return;
+      }
+
+      case 'event': {
+        /* action: { response: 'bold'|'normal'|'safe' } */
+        const res = resolveCard(S, pending.card, action.response, rng);
+        push(res.success ? 'good' : 'bad',
+          `事件卡｜${pending.card.n}（${res.responseLabel}）`,
+          res.text, { applied: res.applied });
+        step();
+        return;
+      }
+
+      case 'midterm':
+      case 'exam':
+      case 'accident':
+      case 'mentor': {
+        /* 只需確認,沒有選項 */
+        if (pending.type === 'mentor') {
+          /* 帶浪結算已在 submit activity 時完成,這裡只是閱讀 */
+        }
+        step();
+        return;
+      }
+
+      case 'activity': {
+        /* action: { actId } 或 { mentor: true } 或 { skip: true } */
+        if (action.skip) {
+          S.slots = 0;
+          step();
+          return;
+        }
+
+        if (action.mentor) {
+          if (!pending.mentor?.available) throw new Error('目前沒有帶浪機會');
+          const idx = CONFIG.mentorSessions - S.mentorSessionsLeft;
+          const session = MENTOR_SESSIONS[idx];
+          S.slots -= CONFIG.mentorSlotCost;
+          S.mentorSessionsLeft--;
+          if (S.mentorSessionsLeft === 0) S.mentorDone = true;
+          const actual = addSkl(S, CONFIG.mentorSklPerSession);
+          push('gold', `老學長｜${session.n}`, session.text,
+            { applied: [{ key: 'skl', amount: CONFIG.mentorSklPerSession, actual }] });
+          openActivity();
+          return;
+        }
+
+        const r = runActivity(S, action.actId, rng);
+        S.slots--;
+
+        /* 活動內容敘述 */
+        const lines = r.results.map((x) =>
+          `${x.target.name}（成功率 ${Math.round(x.rate)}%）${x.success ? '→ 成功' : '→ 沒有下文'}`);
+        push(r.gained > 0 ? 'good' : 'info',
+          `社交活動｜${r.activity.name}`,
+          `接觸了 ${r.results.length} 位對象，成功 ${r.gained} 位。`,
+          { detail: lines, gained: r.gained });
+
+        /* 老學長發現判定(在活動之後,才有「活動中遇到他」的感覺) */
+        const m = checkMentor(action.actId);
+
+        if (S.slots > 0 || (m && S.mentorSessionsLeft > 0)) {
+          openActivity();
+        } else {
+          step();
+        }
+        return;
+      }
+
+      case 'gameover':
+        throw new Error('遊戲已結束');
+
+      default:
+        throw new Error(`未知的待處理型別:${pending.type}`);
+    }
+  };
+
+  /* ---------- 結束 ---------- */
+
+  function finish(reason) {
+    S.over = true;
+    S.overReason = reason;
+    S.ending = makeEnding(S);
+    push(reason === 'graduated' ? 'gold' : 'bad',
+      reason === 'graduated' ? '畢業' : '退學',
+      `${S.ending.gradLine} 生涯人斬 ${S.kills} 人，評價：${S.ending.tierName}。`);
+    pending = { type: 'gameover', ending: S.ending };
+  }
+
+  /* ---------- 對外輔助 ---------- */
+  game.info = () => ({
+    name: S.name, dept: S.deptName, age: S.age, year: S.year,
+    semester: S.semester, semesterName: SEMESTER_NAMES[S.semester - 1] || '—',
+    phase: PHASES[S.phaseIndex], grade: gradeOf(S.semester),
+    ab: { ...S.ab }, pot: { ...S.pot }, ovr: ovr(S),
+    kills: S.kills, rep: S.rep, risk: S.risk,
+    slots: S.slots, baseSlots: baseSlots(S), bonusSlots: S.bonusSlots,
+    exam: S.semester <= CONFIG.totalSemesters ? examThreshold(S.dept, S.semester) : null,
+    accidentChance: accidentChance(S),
+    mentorFound: S.mentorFound, mentorSessionsLeft: S.mentorSessionsLeft,
+    over: S.over,
+  });
+
+  /* 啟動 */
+  enterPhase();
+  return game;
+}
+
+/* ================================================================
+   src/ui/render.js
+   ================================================================ */
+/* 畫面渲染與互動 — 唯一會碰 DOM 的檔案
+ * 邏輯全部來自 core/engine.js;這裡只負責顯示與收集玩家輸入。
+ */
+
+
+
+
+
+
+const APP_VER = 'v0.1.0';
+const $ = (id) => document.getElementById(id);
+
+let game = null;
+let seed = new URLSearchParams(location.search).get('seed') || randomSeed();
+let chosenDept = 'ENG';
+let lastRenderedLog = 0;
+let curBlock = null;
+let curBlockKey = '';
+
+/* ================= 開場畫面 ================= */
+
+function buildStart() {
+  $('ver').textContent = APP_VER;
+  $('seed-show').value = seed;
+
+  const seg = $('seg-dept');
+  seg.innerHTML = '';
+  DEPT_KEYS.forEach((k) => {
+    const b = document.createElement('button');
+    b.dataset.v = k;
+    b.textContent = DEPTS[k].name;
+    if (k === chosenDept) b.className = 'on';
+    b.onclick = () => {
+      chosenDept = k;
+      [...seg.children].forEach((c) => c.classList.toggle('on', c.dataset.v === k));
+      showDeptNote();
+    };
+    seg.appendChild(b);
+  });
+  showDeptNote();
+
+  $('seed-re').onclick = (e) => {
+    e.preventDefault();
+    seed = randomSeed();
+    $('seed-show').value = seed;
+  };
+  $('seed-show').oninput = (e) => { seed = e.target.value.trim() || randomSeed(); };
+  $('btn-start').onclick = start;
+  $('btn-restart').onclick = () => { location.href = location.pathname; };
+}
+
+function showDeptNote() {
+  const d = DEPTS[chosenDept];
+  const s = d.start;
+  $('dept-note').innerHTML =
+    `<b style="color:var(--chalk)">${d.note}</b><br>` +
+    `起始 體力 ${s.sta}・學力 ${s.int}・肌力 ${s.str}・技巧力 ${s.skl}　｜　` +
+    `畢業門檻 學力 ${d.examInt[7]}・肌力 ${d.examStr[7]}`;
+}
+
+function start() {
+  const name = ($('in-name').value || '').trim() || '朱董';
+  seed = ($('seed-show').value || '').trim() || randomSeed();
+  history.replaceState(null, '', `?seed=${encodeURIComponent(seed)}`);
+
+  game = createGame({ name, dept: chosenDept, seed });
+  $('start').style.display = 'none';
+  $('board').style.display = '';
+  $('act').style.display = '';
+  $('act-toggle').style.display = '';
+  $('act-toggle').onclick = () => {
+    const a = $('act');
+    a.classList.toggle('collapsed');
+    $('act-toggle').textContent = a.classList.contains('collapsed') ? '⌃ 展開選項' : '⌄ 收合選項';
+  };
+  lastRenderedLog = 0;
+  refresh();
+}
+
+/* ================= 記分板 ================= */
+
+function board() {
+  const i = game.info();
+  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>`;
+  $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
+  $('bd-age').textContent = i.age;
+  $('bd-year').textContent = i.year;
+  $('bd-ovr').textContent = i.ovr;
+  $('bd-kills').textContent = i.kills;
+
+  /* 能力條:紅色刻度標示本學期期末考門檻 */
+  const rows = $('abrows');
+  rows.innerHTML = '';
+  for (const k of ['sta', 'int', 'str', 'skl']) {
+    const v = i.ab[k], cap = i.pot[k];
+    const pctW = Math.min(100, (v / Math.max(cap, 1)) * 100);
+    let mark = '';
+    if (i.exam && (k === 'int' || k === 'str')) {
+      const need = k === 'int' ? i.exam.int : i.exam.str;
+      const mp = Math.min(100, (need / Math.max(cap, 1)) * 100);
+      const short = v < need;
+      mark = `<em style="left:${mp}%;${short ? '' : 'background:#8fd08faa'}" title="期末門檻 ${need}"></em>`;
+    }
+    const short = i.exam && ((k === 'int' && v < i.exam.int) || (k === 'str' && v < i.exam.str));
+    rows.insertAdjacentHTML('beforeend',
+      `<div class="ab"><span class="nm">${ABL[k]}</span>` +
+      `<span class="bar"><i style="width:${pctW}%"></i>${mark}</span>` +
+      `<span class="val" ${short ? 'style="color:var(--bad)"' : ''}>${v}<s>/${cap}</s></span></div>`);
+  }
+
+  /* 階段燈 */
+  const lamps = $('lamps');
+  lamps.innerHTML = PHASES.map((p) =>
+    `<span class="lamp ${p === i.phase && !i.over ? 'on' : ''}"><i></i>${PHASE_NAMES[p]}</span>`).join('');
+}
+
+/* ================= 紀錄卡片 ================= */
+
+const EFFECT_NAMES = {
+  ...ABL, enc: '邂逅機會', rep: '校內風評', risk: '意外風險',
+  slot: '社交場次', kill: '人斬',
+};
+
+function effectLine(applied) {
+  if (!applied || applied.length === 0) return '';
+  const parts = applied.map((a) => {
+    const n = EFFECT_NAMES[a.key] || a.key;
+    const v = a.actual !== undefined ? a.actual : a.amount;
+    if (v === 0) return `${n} 沒有變化`;
+    /* 風評與風險上升是壞事,顯示顏色要反過來 */
+    const inverted = a.key === 'rep' || a.key === 'risk';
+    const good = inverted ? v < 0 : v > 0;
+    return `<span class="${good ? 'up' : 'dn'}">${n} ${v > 0 ? '+' : ''}${v}</span>`;
+  });
+  return `<div class="eff">${parts.join('　')}</div>`;
+}
+
+function logTarget(entry) {
+  const key = `${entry.semester}`;
+  if (curBlockKey !== key) {
+    /* 收合前一個學期區塊 */
+    if (curBlock) curBlock.classList.add('collapsed');
+    const block = document.createElement('div');
+    block.className = 'yr-block';
+    block.innerHTML =
+      `<div class="yr-head">${entry.semesterName}　${SEMESTER_NAMES[entry.semester - 1] ? '' : ''}</div>` +
+      `<div class="yr-body"></div>`;
+    block.querySelector('.yr-head').onclick = () => block.classList.toggle('collapsed');
+    $('log').appendChild(block);
+    curBlock = block;
+    curBlockKey = key;
+
+    /* 只保留最近幾個區塊,釋放 DOM */
+    const blocks = $('log').querySelectorAll('.yr-block');
+    if (blocks.length > 4) blocks[0].remove();
+  }
+  return curBlock.querySelector('.yr-body');
+}
+
+function renderLog() {
+  const log = game.state.log;
+  for (let i = lastRenderedLog; i < log.length; i++) {
+    const e = log[i];
+    const target = logTarget(e);
+    const card = document.createElement('div');
+    card.className = `card ${e.kind || ''}`;
+    let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
+    html += effectLine(e.applied);
+    if (e.detail && e.detail.length) {
+      html += `<div class="det">${e.detail.map((d) =>
+        d.includes('成功') && !d.includes('沒有下文')
+          ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
+    }
+    card.innerHTML = html;
+    target.appendChild(card);
+  }
+  lastRenderedLog = log.length;
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* ================= 操作區 ================= */
+
+function actTitle(t) { return `<div class="title">${t}</div>`; }
+
+function renderAction() {
+  const p = game.pending;
+  const act = $('act');
+  act.innerHTML = '';
+
+  if (!p) return;
+
+  switch (p.type) {
+    case 'dice': return renderDice(p);
+    case 'event': return renderEvent(p);
+    case 'activity': return renderActivity(p);
+    case 'midterm': return renderConfirm('期中考', '知道了，繼續');
+    case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
+    case 'accident': return renderConfirm('意外事件', '認了，繼續');
+    case 'gameover': return renderEnding(p.ending);
+    default: return renderConfirm('繼續', '繼續');
+  }
+}
+
+function renderConfirm(title, label) {
+  const act = $('act');
+  act.innerHTML = actTitle(title);
+  const b = document.createElement('button');
+  b.className = 'btn main';
+  b.textContent = label;
+  b.onclick = () => { game.submit({}); refresh(); };
+  act.appendChild(b);
+}
+
+/* ---------- 骰子分配 ---------- */
+
+function renderDice(p) {
+  const act = $('act');
+  const dice = p.dice;
+  const used = new Array(dice.length).fill(false);
+  const assignments = [];
+  let active = 0;
+
+  function draw() {
+    act.innerHTML = actTitle(
+      `分配訓練成果（${assignments.length}/${dice.length} 顆已分配）　點骰子選擇，再點下方去處`);
+
+    const row = document.createElement('div');
+    row.id = 'dice';
+    dice.forEach((pip, i) => {
+      const d = document.createElement('div');
+      d.className = `die${used[i] ? ' used' : ''}${i === active && !used[i] ? ' active' : ''}${pip === 6 ? ' six' : ''}`;
+      d.textContent = pip;
+      if (!used[i]) d.onclick = () => { active = i; draw(); };
+      row.appendChild(d);
+    });
+    act.appendChild(row);
+
+    if (assignments.length === dice.length) {
+      const go = document.createElement('button');
+      go.className = 'btn main';
+      go.textContent = '確定分配 ▸';
+      go.onclick = () => { game.submit({ assignments }); refresh(); };
+      act.appendChild(go);
+      const undo = document.createElement('button');
+      undo.className = 'btn';
+      undo.textContent = '↺ 重新分配';
+      undo.onclick = () => {
+        assignments.length = 0;
+        used.fill(false);
+        active = 0;
+        draw();
+      };
+      act.appendChild(undo);
+      return;
+    }
+
+    const pip = dice[active];
+    const info = game.info();
+    const grid = document.createElement('div');
+    grid.className = 'alloc';
+
+    const opts = [
+      { to: 'sta', label: `體力 +${pip}`, note: `目前 ${info.ab.sta}／上限 ${info.pot.sta}　場次來源` },
+      { to: 'int', label: `學力 +${pip}`, note: `目前 ${info.ab.int}　期末需要 ${info.exam?.int ?? '—'}` },
+      { to: 'str', label: `肌力 +${pip}`, note: `目前 ${info.ab.str}　期末需要 ${info.exam?.str ?? '—'}` },
+      {
+        to: 'social',
+        label: `社交場次 +${Math.floor(pip / CONFIG.slotPerDiceDiv)}`,
+        note: `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
+      },
+    ];
+
+    opts.forEach((o) => {
+      const b = document.createElement('button');
+      b.className = `btn${o.to === 'social' ? ' gold' : ''}`;
+      b.innerHTML = `${o.label}<small>${o.note}</small>`;
+      b.onclick = () => {
+        assignments.push({ die: active, to: o.to });
+        used[active] = true;
+        const next = used.findIndex((u) => !u);
+        active = next === -1 ? active : next;
+        draw();
+      };
+      grid.appendChild(b);
+    });
+    act.appendChild(grid);
+  }
+
+  draw();
+}
+
+/* ---------- 事件卡 ---------- */
+
+function renderEvent(p) {
+  const act = $('act');
+  act.innerHTML = actTitle(`事件｜${p.card.n}　—　你要怎麼應對？`);
+  const d = document.createElement('p');
+  d.style.cssText = 'font-size:13px;color:var(--dim);margin-bottom:6px';
+  d.textContent = p.card.desc;
+  act.appendChild(d);
+
+  /* 顯示順序:全力一搏 → 照常執行 → 保守應對(與原型截圖一致) */
+  const order = ['bold', 'normal', 'safe'];
+  order.forEach((key) => {
+    const o = p.options.find((x) => x.key === key);
+    if (!o) return;
+    const b = document.createElement('button');
+    b.className = `btn${key === 'normal' ? ' main' : ''}${key === 'bold' ? ' warn' : ''}`;
+    b.innerHTML = `${o.label}<small>成功率 ${o.rate}%｜加成／減益幅度 ±${o.mag}</small>`;
+    b.onclick = () => { game.submit({ response: key }); refresh(); };
+    act.appendChild(b);
+  });
+}
+
+/* ---------- 社交活動 ---------- */
+
+function renderActivity(p) {
+  const act = $('act');
+  const i = game.info();
+  act.innerHTML = actTitle(
+    `社交活動　剩餘場次 <span class="hl">${p.slotsLeft}</span>　` +
+    `風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
+
+  if (p.mentor?.available) {
+    const b = document.createElement('button');
+    b.className = 'btn gold';
+    b.innerHTML = `🍺 ${p.mentor.session.n}<small>` +
+      `技巧力 +${p.mentor.sklGain}　消耗 ${p.mentor.cost} 場次　（機會有限）</small>`;
+    b.onclick = () => { game.submit({ mentor: true }); refresh(); };
+    act.appendChild(b);
+  }
+
+  p.list.forEach((a) => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.disabled = !a.available;
+    const diffN = { low: '低', mid: '中', high: '高' }[a.diff];
+    const riskN = { none: '無', low: '低', mid: '中', high: '高', extreme: '極高' }[a.risk];
+    b.innerHTML = `${a.name}　<span class="hl">接觸 ${a.enc} 人</span><small>` +
+      (a.available
+        ? `對象難度 ${diffN}｜風險 ${riskN}`
+        : `需要 ${a.lockReason}`) + `</small>`;
+    if (a.available) {
+      b.onclick = () => { game.submit({ actId: a.id }); refresh(); };
+    }
+    act.appendChild(b);
+  });
+
+  const skip = document.createElement('button');
+  skip.className = 'btn warn';
+  skip.innerHTML = '這學期不再出門<small>放棄剩餘場次，直接進入期末</small>';
+  skip.onclick = () => { game.submit({ skip: true }); refresh(); };
+  act.appendChild(skip);
+}
+
+/* ---------- 結局 ---------- */
+
+function renderEnding(e) {
+  const act = $('act');
+  act.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'card gold';
+  const names = e.conquered.length
+    ? e.conquered.join('、')
+    : '（一位都沒有）';
+
+  card.innerHTML = `
+    <div class="end-hero">
+      <div class="tier">${e.headline}</div>
+      <div class="kills">${e.kills}<small>生涯人斬</small></div>
+    </div>
+    <p>${e.gradLine}</p>
+    <table class="fin">
+      <tr><th>項目</th><th>數值</th></tr>
+      <tr><td>就讀學期</td><td>${e.semestersPlayed} / ${CONFIG.totalSemesters}</td></tr>
+      <tr><td>體力</td><td>${e.ab.sta}</td></tr>
+      <tr><td>學力</td><td>${e.ab.int}</td></tr>
+      <tr><td>肌力</td><td>${e.ab.str}</td></tr>
+      <tr><td>技巧力</td><td>${e.ab.skl}</td></tr>
+      <tr><td>攻略嘗試</td><td>${e.stats.attempts} 次</td></tr>
+      <tr><td>攻略成功率</td><td>${e.stats.successRate}%</td></tr>
+      <tr><td>社交活動</td><td>${e.stats.activitiesDone} 場</td></tr>
+      <tr><td>校內風評</td><td>${e.rep}</td></tr>
+      <tr><td>老學長</td><td>${e.mentorFound ? '找到了' : '始終沒遇到'}</td></tr>
+    </table>
+    <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
+  `;
+  logTarget({ semester: game.state.semester, semesterName: '結局' }).appendChild(card);
+
+  act.innerHTML = actTitle(`世界種子　${game.seed}`);
+  const again = document.createElement('button');
+  again.className = 'btn main';
+  again.textContent = '↺ 再玩一次（換一個種子）';
+  again.onclick = () => { location.href = location.pathname; };
+  act.appendChild(again);
+
+  const same = document.createElement('button');
+  same.className = 'btn';
+  same.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
+  same.onclick = () => { location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`; };
+  act.appendChild(same);
+
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* ================= 主更新 ================= */
+
+function refresh() {
+  board();
+  renderLog();
+  renderAction();
+}
+
+buildStart();
+
+/* 給瀏覽器主機測試用:暴露最小介面 */
+window.__game = () => game;
+})();
+</script>
+</body>
+</html>

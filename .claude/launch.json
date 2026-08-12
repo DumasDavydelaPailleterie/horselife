@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dazhongma",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["sim/serve.js", "5188"],
+      "port": 5188
+    }
+  ]
+}
