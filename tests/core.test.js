@@ -8,6 +8,7 @@ import { baseSlots, totalSlots, listActivities, runActivity } from '../src/core/
 import { scaleAbility, resolveCard, cardEligible, drawCard, applyEffects } from '../src/core/eventcard.js';
 import { accidentChance, endOfSemesterDecay } from '../src/core/risk.js';
 import { tierOf, makeEnding } from '../src/core/ending.js';
+import { composeNamelist } from '../src/core/namelist.js';
 import { CONFIG } from '../src/data/config.js';
 import { DEPTS, DEPT_KEYS } from '../src/data/depts.js';
 import { EVENTS } from '../src/data/events.js';
@@ -549,9 +550,91 @@ describe('結局判定', () => {
     assert.ok(e.gradLine.includes('3'), `文案應提到第 3 學期,實際:${e.gradLine}`);
   });
 
+  test('攻略成功會記錄對象是不是隨機路人（給歷任名單分類用）', () => {
+    const { S, rng } = mk();
+    S.ab = { sta: 99, int: 99, str: 99, skl: 99 };
+    S.pot = { sta: 200, int: 200, str: 200, skl: 200 };
+    attemptConquest(S, { id: 'r1', name: '名冊角色', title: '系花', tier: 'positive', diff: 'low' }, rng);
+    attemptConquest(S, { id: null, name: '無名氏', title: '路人', tier: 'normal', diff: 'low', generated: true }, rng);
+    const named = S.conquered.filter((c) => !c.generated);
+    const strangers = S.conquered.filter((c) => c.generated);
+    assert.equal(named.length, 1, '名冊角色應標記為非路人');
+    assert.equal(strangers.length, 1, '隨機生成的應標記為路人');
+    assert.equal(named[0].name, '名冊角色');
+  });
+
+  test('歷任名單的全列門檻是一個可調參數', () => {
+    assert.equal(typeof CONFIG.namelistFullBelow, 'number');
+    assert.ok(CONFIG.namelistFullBelow >= 1,
+      '門檻至少要是 1,否則少量玩家的名單也會被合併');
+  });
+
   test('沒有任何嘗試時成功率為零而不是除以零', () => {
     const { S } = mk();
     S.overReason = 'graduated';
     assert.equal(makeEnding(S).stats.successRate, 0);
+  });
+});
+
+describe('歷任名單的組成規則', () => {
+  const named = (n) => ({ name: `名冊${n}`, title: '系花', tier: 'positive', generated: false });
+  const stranger = (n) => ({ name: `路人${n}`, title: '路人', tier: 'normal', generated: true });
+
+  test('一位都沒有時回傳空名單', () => {
+    const r = composeNamelist([], 10);
+    assert.equal(r.mode, 'full');
+    assert.equal(r.named.length, 0);
+    assert.equal(r.strangers, 0);
+  });
+
+  test('人數在門檻以內時全部列出,連路人也列', () => {
+    const list = [named(1), stranger(2), named(3), stranger(4), stranger(5), named(6)];
+    const r = composeNamelist(list, 10);
+    assert.equal(r.mode, 'full');
+    assert.equal(r.named.length, 6, '六位全部都要列出');
+    assert.equal(r.strangers, 0, '門檻以內不該合併任何人');
+    assert.ok(r.named.some((c) => c.generated), '路人也要在列出的名單裡');
+  });
+
+  test('剛好等於門檻時仍然全部列出（邊界）', () => {
+    const list = Array.from({ length: 10 }, (_, i) => (i % 2 ? stranger(i) : named(i)));
+    const r = composeNamelist(list, 10);
+    assert.equal(r.mode, 'full');
+    assert.equal(r.named.length, 10);
+    assert.equal(r.strangers, 0);
+  });
+
+  test('超過門檻一位就改成合併模式（邊界）', () => {
+    const list = Array.from({ length: 11 }, (_, i) => (i % 2 ? stranger(i) : named(i)));
+    const r = composeNamelist(list, 10);
+    assert.equal(r.mode, 'merged');
+    assert.equal(r.named.length, 6, '六位名冊角色要逐一列出');
+    assert.equal(r.strangers, 5, '五位路人要被合併');
+  });
+
+  test('合併模式下名冊角色與路人的數量相加等於總人數', () => {
+    const list = [
+      ...Array.from({ length: 44 }, (_, i) => named(i)),
+      ...Array.from({ length: 48 }, (_, i) => stranger(i)),
+    ];
+    const r = composeNamelist(list, 10);
+    assert.equal(r.mode, 'merged');
+    assert.equal(r.named.length, 44);
+    assert.equal(r.strangers, 48);
+    assert.equal(r.named.length + r.strangers, list.length, '不能漏人也不能多算');
+  });
+
+  test('全部都是路人時,名冊清單為空但合併數字正確', () => {
+    const list = Array.from({ length: 30 }, (_, i) => stranger(i));
+    const r = composeNamelist(list, 10);
+    assert.equal(r.named.length, 0);
+    assert.equal(r.strangers, 30);
+  });
+
+  test('沒有傳門檻時採用設定檔的預設值', () => {
+    const list = Array.from({ length: CONFIG.namelistFullBelow }, (_, i) => named(i));
+    assert.equal(composeNamelist(list).mode, 'full');
+    list.push(stranger(99));
+    assert.equal(composeNamelist(list).mode, 'merged');
   });
 });

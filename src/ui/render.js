@@ -6,6 +6,7 @@ import { createGame } from '../core/engine.js';
 import { CONFIG, PHASES, PHASE_NAMES, SEMESTER_NAMES, ABL } from '../data/config.js';
 import { DEPTS, DEPT_KEYS } from '../data/depts.js';
 import { randomSeed } from '../rng.js';
+import { composeNamelist } from '../core/namelist.js';
 
 const APP_VER = 'v0.1.0';
 const $ = (id) => document.getElementById(id);
@@ -251,11 +252,19 @@ function submitWithModal(action, title) {
 
   board();
   renderLog();
+  /* renderAction 在遊戲結束時會把結局填進視窗 */
   renderAction();
 
-  if (added.length > 0) {
-    showModal(title, added);
-  }
+  const over = game.pending.type === 'gameover';
+
+  if (added.length === 0) return;
+
+  /* 如果這個行動剛好結束了遊戲,兩個視窗要串接而不是互相覆蓋:
+   * 先看這次行動的結果(例如那位讓你登出的對象發生了什麼),
+   * 按繼續之後才看生涯總結。
+   * 先前這裡直接呼叫 showModal,會把 renderAction 填好的結局內容蓋掉,
+   * 玩家永遠看不到總結。 */
+  showModal(title, added, over ? () => showEndingModal(game.pending.ending) : null);
 }
 
 /* ================= 操作區 ================= */
@@ -294,6 +303,31 @@ function renderConfirm(title, label) {
 
 /* ---------- 骰子分配 ---------- */
 
+/* 點數在九宮格上的位置。用真正的骰子點陣而不是印數字,
+ * 一眼就看得出幾點,也比數字更像骰子。 */
+const PIP_LAYOUT = {
+  1: [5],
+  2: [1, 9],
+  3: [1, 5, 9],
+  4: [1, 3, 7, 9],
+  5: [1, 3, 5, 7, 9],
+  6: [1, 3, 4, 6, 7, 9],
+};
+
+function makePips(pip) {
+  const frag = document.createDocumentFragment();
+  (PIP_LAYOUT[pip] || [5]).forEach((cell) => {
+    const dot = document.createElement('i');
+    dot.className = `pc${cell}`;
+    frag.appendChild(dot);
+  });
+  /* 螢幕閱讀器與純文字備援用的點數 */
+  const txt = document.createElement('b');
+  txt.textContent = pip;
+  frag.appendChild(txt);
+  return frag;
+}
+
 function renderDice(p) {
   const act = $('act');
   const dice = p.dice;
@@ -310,7 +344,8 @@ function renderDice(p) {
     dice.forEach((pip, i) => {
       const d = document.createElement('div');
       d.className = `die${used[i] ? ' used' : ''}${i === active && !used[i] ? ' active' : ''}${pip === 6 ? ' six' : ''}`;
-      d.textContent = pip;
+      d.appendChild(makePips(pip));
+      d.setAttribute('aria-label', `${pip} 點`);
       if (!used[i]) d.onclick = () => { active = i; draw(); };
       row.appendChild(d);
     });
@@ -528,17 +563,34 @@ function buildEndingCard(e) {
   const card = document.createElement('div');
   card.className = 'card gold';
 
-  /* 歷任名單:特殊角色標色,一般角色維持原色 */
+  /* 歷任名單。
+   *
+   * 衝量玩法一局會接觸兩百多位對象,名冊用完之後補的都是隨機路人,
+   * 如果全部列出來,有名有姓的角色會被路人淹沒(實測 49 人裡有 27 個路人)。
+   * 所以人數多的時候只列出名冊上的角色,路人合併成一行。
+   * 但人數少的時候(門檻見 config.namelistFullBelow)還是全部列出來——
+   * 只斬到幾個人的玩家,每一個都值得留名字。 */
   const TIER_COLOR = {
     positive: 'var(--good)', negative: 'var(--bad)', fatal: 'var(--bad)',
   };
-  const names = e.conquered.length
-    ? e.conquered.map((c) => {
-      const col = TIER_COLOR[c.tier];
-      const label = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
-      return col ? `<span style="color:${col};font-weight:700">${label}</span>` : label;
-    }).join('、')
-    : '（一位都沒有）';
+  const label = (c) => {
+    const t = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
+    const col = TIER_COLOR[c.tier];
+    return col ? `<span style="color:${col};font-weight:700">${t}</span>` : t;
+  };
+
+  const nl = composeNamelist(e.conquered);
+  let names;
+  if (nl.named.length === 0 && nl.strangers === 0) {
+    names = '（一位都沒有）';
+  } else {
+    const parts = [];
+    if (nl.named.length > 0) parts.push(nl.named.map(label).join('、'));
+    if (nl.strangers > 0) {
+      parts.push(`<span style="color:var(--dim)">以及 ${nl.strangers} 位記不住名字的</span>`);
+    }
+    names = parts.join('，<br>');
+  }
 
   const stdRow = e.std
     ? `<tr><td>健康狀況</td><td style="color:var(--bad)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
@@ -586,12 +638,18 @@ function renderEnding(e) {
   act.appendChild(replayButton('main'));
   act.appendChild(sameSeedButton());
 
-  /* 結局用視窗全螢幕呈現,並把重玩按鈕直接放在視窗底部,
-   * 玩家看完就能立刻再開一局,不用先關視窗再找按鈕。 */
+  showEndingModal(e);
+  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* 結局用視窗全螢幕呈現,並把重玩按鈕直接放在視窗底部,
+ * 玩家看完就能立刻再開一局,不用先關視窗再找按鈕。 */
+function showEndingModal(e) {
   const box = $('modal-body');
   box.innerHTML = '';
   box.appendChild(buildEndingCard(e));
   $('modal-head').textContent = '生涯總結';
+
   const foot = $('modal-foot');
   foot.innerHTML = '';
   foot.appendChild(replayButton('main'));
@@ -605,8 +663,6 @@ function renderEnding(e) {
   modalOnClose = null;
   $('modal').classList.add('on');
   box.scrollTop = 0;
-
-  requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
 }
 
 function replayButton(cls) {

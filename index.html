@@ -91,15 +91,37 @@ body{background:var(--bg);color:var(--chalk);font-family:var(--sans);font-size:1
   border-bottom:none;color:#8fae9c;font-size:11px;padding:3px 14px;border-radius:10px 10px 0 0;cursor:pointer}
 #act.collapsed{display:none!important}
 
-/* 骰子 */
-#dice{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.die{width:46px;height:46px;border-radius:9px;background:var(--chalk);color:#12251a;font-family:var(--mono);
-  font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  box-shadow:inset 0 -3px 0 #0003;position:relative;cursor:pointer;transition:.15s}
-.die::after{content:'';position:absolute;inset:4px;border-radius:6px;border:1.5px dashed #c9764a55}
-.die.used{opacity:.2;transform:scale(.88);cursor:default}
-.die.active{outline:3px solid var(--amber);outline-offset:2px}
-.die.six{color:#b3402f}
+/* ---------- 骰子 ----------
+   原本的樣式是棒球版留下來的:白色方塊配紅色虛線內框,那是棒球的縫線。
+   重新設計成真正的骰子:骨白色骰身、圓點點數、擲出六點時整顆變成琥珀金
+   並帶一個馬蹄鐵印記——六點是這個遊戲裡最有份量的一擲(點數最高,
+   也是未來隱藏素質覺醒的判定依據),值得有自己的樣子。 */
+#dice{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+.die{width:48px;height:48px;border-radius:11px;position:relative;cursor:pointer;transition:.15s;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  padding:7px;gap:2px;
+  background:linear-gradient(158deg,#f6f1e2 0%,#e6dfcb 55%,#d6cdb4 100%);
+  box-shadow:inset 0 -3px 0 #0000001f, inset 0 1px 0 #fff9, 0 3px 6px #0007}
+/* 圓點 */
+.die i{background:radial-gradient(circle at 35% 30%,#33513c,#12251a 70%);border-radius:50%;
+  box-shadow:inset 0 1px 1px #0006;align-self:center;justify-self:center;
+  width:100%;height:100%;max-width:9px;max-height:9px}
+/* 九宮格位置 */
+.pc1{grid-area:1/1}.pc2{grid-area:1/2}.pc3{grid-area:1/3}
+.pc4{grid-area:2/1}.pc5{grid-area:2/2}.pc6{grid-area:2/3}
+.pc7{grid-area:3/1}.pc8{grid-area:3/2}.pc9{grid-area:3/3}
+/* 六點:整顆變金,帶馬蹄鐵印記 */
+.die.six{background:linear-gradient(158deg,#ffe1a3 0%,#ffc95c 55%,#e39f34 100%);
+  box-shadow:inset 0 -3px 0 #00000026, inset 0 1px 0 #fffc, 0 0 14px #ffc95c66, 0 3px 6px #0007}
+.die.six i{background:radial-gradient(circle at 35% 30%,#6b4a12,#2e1d04 70%)}
+.die.six::after{content:'🐎';position:absolute;right:2px;bottom:0;font-size:11px;
+  opacity:.55;line-height:1;pointer-events:none}
+/* 已使用與選取狀態 */
+.die.used{opacity:.2;transform:scale(.86);cursor:default;filter:saturate(.4)}
+.die.active{outline:3px solid var(--amber);outline-offset:2px;transform:translateY(-2px)}
+.die.active.six{outline-color:#fff2c8}
+/* 骰子點數的文字備援(給輔助工具讀,畫面上不顯示) */
+.die b{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .alloc{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .alloc .btn{margin-top:0}
 .pool{font-family:var(--mono);font-size:13px;color:var(--amber);margin-bottom:8px}

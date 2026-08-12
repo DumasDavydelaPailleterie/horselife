@@ -106,6 +106,9 @@ export function attemptConquest(S, target, rng) {
     S.conquered.push({
       name: target.name, title: target.title || '', tier: target.tier || 'normal',
       semester: S.semester,
+      /* 名冊抽完後隨機生成的路人。結局的歷任名單會把她們合併成一行,
+       * 避免有名有姓的角色被大量路人淹沒。 */
+      generated: !!target.generated,
     });
     S.rep += CONFIG.repPerConquest;
   }

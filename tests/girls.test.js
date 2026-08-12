@@ -15,15 +15,34 @@ function mk(dept = 'ENG', seed = 'girls-test') {
 }
 
 describe('女角名冊:資料完整性', () => {
-  test('總數為 100 位', () => {
-    assert.equal(GIRL_COUNT, 100);
+  test('總數為 200 位', () => {
+    assert.equal(GIRL_COUNT, 200);
   });
 
   test('分級比例符合指定：登出 2%、負面 15%、正面 20%、一般 63%', () => {
-    assert.equal(GIRLS_BY_TIER.fatal.length, 2, '登出級應為 2 位');
-    assert.equal(GIRLS_BY_TIER.negative.length, 15, '負面級應為 15 位');
-    assert.equal(GIRLS_BY_TIER.positive.length, 20, '正面級應為 20 位');
-    assert.equal(GIRLS_BY_TIER.normal.length, 63, '一般級應為 63 位');
+    assert.equal(GIRLS_BY_TIER.fatal.length, 4, '登出級應為 4 位（2%）');
+    assert.equal(GIRLS_BY_TIER.negative.length, 30, '負面級應為 30 位（15%）');
+    assert.equal(GIRLS_BY_TIER.positive.length, 40, '正面級應為 40 位（20%）');
+    assert.equal(GIRLS_BY_TIER.normal.length, 126, '一般級應為 126 位（63%）');
+  });
+
+  test('分級比例換算成百分比要精準符合使用者指定的數字', () => {
+    const pct = (n) => (n / GIRL_COUNT) * 100;
+    assert.equal(pct(GIRLS_BY_TIER.fatal.length), 2);
+    assert.equal(pct(GIRLS_BY_TIER.negative.length), 15);
+    assert.equal(pct(GIRLS_BY_TIER.positive.length), 20);
+    assert.equal(pct(GIRLS_BY_TIER.normal.length), 63);
+  });
+
+  test('登出級角色的在場機率要跟她們的數量匹配', () => {
+    /* 名冊擴充讓登出級從 2 位變 4 位,如果在場機率不跟著降,
+     * 「至少一位在場」的機率會翻倍,登出率也會跟著翻倍。 */
+    const p = CONFIG.fatalInPlayChance;
+    const atLeastOne = 1 - (1 - p) ** GIRLS_BY_TIER.fatal.length;
+    assert.ok(atLeastOne < 0.32,
+      `至少一位登出級角色在場的機率是 ${(atLeastOne * 100).toFixed(0)}%,太高了`);
+    assert.ok(atLeastOne > 0.15,
+      `只有 ${(atLeastOne * 100).toFixed(0)}% 的局有登出級角色,這個機制幾乎不會被玩家遇到`);
   });
 
   test('姓名不重複', () => {
@@ -100,7 +119,7 @@ describe('女角名冊:資料完整性', () => {
 
   test('帶性病的角色數量與種類符合設計', () => {
     const withStd = GIRLS.filter((g) => g.eff?.std);
-    assert.ok(withStd.length >= 4, `帶性病的角色只有 ${withStd.length} 位,太少`);
+    assert.ok(withStd.length >= 6, `帶性病的角色只有 ${withStd.length} 位,太少`);
     for (const g of withStd) {
       assert.ok(CONFIG.std[g.eff.std], `${g.name} 的性病種類 ${g.eff.std} 未定義`);
     }

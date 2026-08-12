@@ -52,6 +52,7 @@ const MODULES = [
   'src/core/exam.js',
   'src/core/eventcard.js',
   'src/core/risk.js',
+  'src/core/namelist.js',
   'src/core/ending.js',
   'src/core/engine.js',
   /* 畫面層放最後 */
