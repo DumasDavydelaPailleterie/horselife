@@ -47,6 +47,18 @@ function buildStart() {
   $('seed-show').oninput = (e) => { seed = e.target.value.trim() || randomSeed(); };
   $('btn-start').onclick = start;
   $('btn-restart').onclick = () => { location.href = location.pathname; };
+
+  /* 結果視窗的關閉方式:按繼續、點背景、或按 Esc */
+  $('modal-ok').onclick = closeModal;
+  $('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalOpen()) closeModal();
+    /* 視窗開著的時候,Enter 與空白鍵也當作「繼續」 */
+    if ((e.key === 'Enter' || e.key === ' ') && modalOpen()) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
 }
 
 function showDeptNote() {
@@ -160,25 +172,73 @@ function logTarget(entry) {
   return curBlock.querySelector('.yr-body');
 }
 
+/* 把一則紀錄做成卡片元素。紀錄區與結果視窗共用同一份呈現邏輯,
+ * 這樣兩邊看到的內容永遠一致,不會有一邊漏顯示效果明細的情況。 */
+function makeCard(e) {
+  const card = document.createElement('div');
+  card.className = `card ${e.kind || ''}`;
+  let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
+  html += effectLine(e.applied);
+  if (e.detail && e.detail.length) {
+    html += `<div class="det">${e.detail.map((d) =>
+      d.includes('→ 成功')
+        ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
+  }
+  card.innerHTML = html;
+  return card;
+}
+
 function renderLog() {
   const log = game.state.log;
   for (let i = lastRenderedLog; i < log.length; i++) {
     const e = log[i];
-    const target = logTarget(e);
-    const card = document.createElement('div');
-    card.className = `card ${e.kind || ''}`;
-    let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
-    html += effectLine(e.applied);
-    if (e.detail && e.detail.length) {
-      html += `<div class="det">${e.detail.map((d) =>
-        d.includes('→ 成功')
-          ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
-    }
-    card.innerHTML = html;
-    target.appendChild(card);
+    logTarget(e).appendChild(makeCard(e));
   }
   lastRenderedLog = log.length;
   requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+/* ================= 結果視窗 =================
+ * 社交活動階段的底部面板有多達十一個按鈕,會把紀錄區擠出畫面,
+ * 玩家選完之後看不到結果。所以在那個階段的行動結果改用視窗跳出來。 */
+
+let modalOnClose = null;
+
+function showModal(title, entries, onClose) {
+  const body = $('modal-body');
+  body.innerHTML = '';
+  entries.forEach((e) => body.appendChild(makeCard(e)));
+  $('modal-head').textContent = title;
+  modalOnClose = onClose || null;
+  $('modal').classList.add('on');
+  body.scrollTop = 0;
+}
+
+function closeModal() {
+  $('modal').classList.remove('on');
+  const fn = modalOnClose;
+  modalOnClose = null;
+  if (fn) fn();
+}
+
+function modalOpen() {
+  return $('modal').classList.contains('on');
+}
+
+/* 送出動作,並把這次新增的紀錄用視窗呈現。
+ * 用於社交活動階段的所有行動:參加活動、就醫、老學長帶浪、特殊角色出手或收手。 */
+function submitWithModal(action, title) {
+  const before = game.state.log.length;
+  game.submit(action);
+  const added = game.state.log.slice(before);
+
+  board();
+  renderLog();
+  renderAction();
+
+  if (added.length > 0) {
+    showModal(title, added);
+  }
 }
 
 /* ================= 操作區 ================= */
@@ -330,7 +390,7 @@ function renderActivity(p) {
     b.className = 'btn gold';
     b.innerHTML = `🍺 ${p.mentor.session.n}<small>` +
       `技巧力 +${p.mentor.sklGain}　消耗 ${p.mentor.cost} 場次　（機會有限）</small>`;
-    b.onclick = () => { game.submit({ mentor: true }); refresh(); };
+    b.onclick = () => submitWithModal({ mentor: true }, '老學長帶你出門');
     act.appendChild(b);
   }
 
@@ -340,7 +400,7 @@ function renderActivity(p) {
     b.className = 'btn warn';
     b.innerHTML = `🏥 就醫治療 ${p.cure.name}<small>` +
       `治癒率 ${p.cure.rate}%　消耗 ${p.cure.cost} 場次　不治療每學期都會扣能力</small>`;
-    b.onclick = () => { game.submit({ cure: true }); refresh(); };
+    b.onclick = () => submitWithModal({ cure: true }, '就醫結果');
     act.appendChild(b);
   } else if (p.cure?.incurable) {
     const note = document.createElement('div');
@@ -362,7 +422,7 @@ function renderActivity(p) {
         ? `對象難度 ${diffN}｜風險 ${riskN}`
         : `需要 ${a.lockReason}`) + `</small>`;
     if (a.available) {
-      b.onclick = () => { game.submit({ actId: a.id }); refresh(); };
+      b.onclick = () => submitWithModal({ actId: a.id }, a.name);
     }
     act.appendChild(b);
   });
@@ -399,13 +459,13 @@ function renderSpecial(p) {
   const go = document.createElement('button');
   go.className = 'btn main';
   go.innerHTML = `出手<small>成功率 ${p.rate}%　結果好壞看她是誰</small>`;
-  go.onclick = () => { game.submit({ go: true }); refresh(); };
+  go.onclick = () => submitWithModal({ go: true }, `${g.name}・${g.title}`);
   act.appendChild(go);
 
   const no = document.createElement('button');
   no.className = 'btn';
   no.innerHTML = '收手<small>不算人斬，但也不會有後果。她今晚之後不會再出現</small>';
-  no.onclick = () => { game.submit({ go: false }); refresh(); };
+  no.onclick = () => submitWithModal({ go: false }, `${g.name}・${g.title}`);
   act.appendChild(no);
 }
 

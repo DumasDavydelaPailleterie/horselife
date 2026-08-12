@@ -129,6 +129,26 @@ body{background:var(--bg);color:var(--chalk);font-family:var(--sans);font-size:1
 #ver{position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);
   opacity:.55;font-family:var(--mono);z-index:60;pointer-events:none}
 
+/* ---------- 結果視窗 ----------
+   社交活動的選項多達十一個,底部面板會把紀錄區擠出畫面,
+   所以行動的結果改用視窗跳出來,確保玩家一定看得到。 */
+#modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:#04100a;background:rgba(4,16,10,.82);padding:16px;backdrop-filter:blur(3px)}
+#modal.on{display:flex;animation:fade .18s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+#modal-box{background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+  width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;
+  box-shadow:0 18px 48px #000b;animation:rise .2s ease}
+@keyframes rise{from{transform:translateY(14px)}to{transform:none}}
+#modal-head{padding:12px 16px 10px;border-bottom:1px solid var(--edge);
+  font-size:12px;letter-spacing:.18em;color:var(--dim);font-weight:700;flex:none}
+#modal-body{padding:12px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px;
+  -webkit-overflow-scrolling:touch}
+#modal-body .card{animation:none}
+#modal-foot{padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--edge);flex:none}
+#modal-foot .btn{margin-top:0}
+
 /* 結局 */
 .end-hero{text-align:center;padding:6px 0 2px}
 .end-hero .tier{font-size:26px;font-weight:900;color:var(--gold);letter-spacing:.04em}
@@ -169,6 +189,14 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
       <input id="seed-show" maxlength="24">
       · <a href="#" id="seed-re" style="color:var(--blue)">換一個</a><br>
       相同種子＋相同選擇＝相同人生（可直接輸入朋友的種子碼）</p>
+  </div>
+</div>
+
+<div id="modal">
+  <div id="modal-box">
+    <div id="modal-head"></div>
+    <div id="modal-body"></div>
+    <div id="modal-foot"><button class="btn main" id="modal-ok">繼續</button></div>
   </div>
 </div>
 
