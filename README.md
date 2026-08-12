@@ -34,11 +34,13 @@ npm test
 npm run sim
 ```
 
-打包成單一 HTML 檔案(產出到 `dist/`):
+打包成單一 HTML 檔案(產出到 `docs/`):
 
 ```bash
 npm run build
 ```
+
+打包腳本會先檢查 `src/` 底下每一支 `.js` 都有列進打包清單,漏掉的話會直接失敗,不會產出壞掉的檔案。
 
 ## 專案結構
 
@@ -60,14 +62,22 @@ sim/
   serve.js          開發伺服器
   playthrough.js    自動模擬與平衡報告
   build.js          單一檔案打包
-dist/               打包產物（部署用）
+docs/               打包產物（GitHub Pages 從這裡發布）
 ```
 
 邏輯層與畫面層完全分離,引擎採用狀態機而不是回呼結構,所以測試程式與真實畫面是用完全相同的方式驅動遊戲。
 
 ## 部署
 
-`dist/index.html` 是完全自給自足的單一檔案,沒有任何外部依賴,可以直接放到任何靜態網站空間。部署步驟見專案規劃文件中的上架說明。
+GitHub Pages 的來源設定為 `main` 分支的 **`/docs`** 資料夾。
+
+`docs/index.html` 是完全自給自足的單一檔案。之所以部署打包版而不是多檔案版,是因為 GitHub Pages 對每個檔案送出 `Cache-Control: max-age=600`,多檔案架構在更新後會有一段時間出現新舊模組混雜的狀態,瀏覽器會直接拋出 SyntaxError 變成白畫面。單一檔案不會有這個問題——快取到的一定是完整的舊版,不會是壞掉的混合體。
+
+更新流程:
+
+```bash
+npm test && npm run build && git add . && git commit -m "說明改了什麼" && git push
+```
 
 ## 授權與致意
 
