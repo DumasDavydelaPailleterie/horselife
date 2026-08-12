@@ -330,6 +330,23 @@ describe('校醫室與性病免疫', () => {
       `一次就成功的比例只有 ${(rate * 100).toFixed(0)}%,免疫沒有變簡單`);
   });
 
+  test('專屬場所不會被邂逅加成灌水成一堆路人', () => {
+    const { S, rng } = mk();
+    /* 事件卡可能給邂逅機會加成,但校醫室只有護理師一個人 */
+    const many = drawGirls(S, 'act_clinic', 5, 'low', rng);
+    assert.equal(many.length, 1, `校醫室應該只抽出 1 人,實際 ${many.length} 人`);
+    assert.ok(many[0].eff?.immune, '而且那個人必須是護理師');
+    assert.ok(!many.some((g) => g.generated), '不該出現隨機生成的路人');
+  });
+
+  test('非專屬場所名冊抽完時仍會補路人,不會讓遊戲卡住（對照）', () => {
+    const { S, rng } = mk();
+    S.metIds = GIRLS.map((g) => g.id);
+    const list = drawGirls(S, 'act_club', 3, 'low', rng);
+    assert.equal(list.length, 3);
+    assert.ok(list.every((g) => g.generated), '應該全部是隨機路人');
+  });
+
   test('護理師出手失敗後還可以再遇到（她是員工,不是一夜的對象）', () => {
     const { S } = mk();
     const nurse = GIRLS.find((g) => g.eff?.immune);

@@ -129,6 +129,22 @@ body{background:var(--bg);color:var(--chalk);font-family:var(--sans);font-size:1
 #ver{position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);
   opacity:.55;font-family:var(--mono);z-index:60;pointer-events:none}
 
+/* ---------- 社交活動選單(兩欄 + 未解鎖折疊) ----------
+   八個地點如果一欄排,面板會高到把紀錄區整個擠掉(實測佔畫面 94%)。
+   改成兩欄,並把去不了的地點收進折疊區,面板高度可以減少一半以上。 */
+.venues{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.venues .btn{margin-top:0;padding:8px 9px;font-size:14px;line-height:1.35}
+.venues .btn small{font-size:10.5px;margin-top:1px;line-height:1.4}
+.venues .btn b{color:var(--amber);font-size:12px;font-weight:700;margin-left:3px}
+.locked-head{margin-top:8px;background:#0e2015;border:1px solid #2b4a38;border-radius:8px;
+  color:#8fae9c;font-size:12px;padding:7px 10px;cursor:pointer;user-select:none;
+  display:flex;justify-content:space-between;align-items:center}
+.locked-head:hover{border-color:var(--amber);color:var(--chalk)}
+.locked-head::after{content:'▸';font-size:11px}
+.locked-wrap.open .locked-head::after{content:'▾'}
+.locked-wrap .venues{display:none}
+.locked-wrap.open .venues{display:grid}
+
 /* ---------- 結果視窗 ----------
    社交活動的選項多達十一個,底部面板會把紀錄區擠出畫面,
    所以行動的結果改用視窗跳出來,確保玩家一定看得到。 */

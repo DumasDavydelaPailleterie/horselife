@@ -61,6 +61,9 @@ export function drawGirls(S, actId, n, actDiff, rng) {
     let g = avail.length > 0 ? weightedPick(avail, rng) : null;
 
     if (!g) {
+      /* 專屬場所(例如校醫室)不補隨機路人。
+       * 那裡就只有指定的那個人,不該因為事件卡給了邂逅加成就憑空多出陌生人。 */
+      if (ACT_BY_ID[actId]?.exclusive) break;
       if (!CONFIG.girlFallbackToRandom) break;
       picked.push(randomStranger(S, rng, actDiff));
       continue;

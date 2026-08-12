@@ -14,6 +14,8 @@ let game = null;
 let seed = new URLSearchParams(location.search).get('seed') || randomSeed();
 let chosenDept = 'ENG';
 let lastRenderedLog = 0;
+/* 「還去不了的地方」折疊區的開合狀態,記住玩家的偏好,不要每次重繪都收回去 */
+let lockedOpen = false;
 let curBlock = null;
 let curBlockKey = '';
 
@@ -48,9 +50,13 @@ function buildStart() {
   $('btn-start').onclick = start;
   $('btn-restart').onclick = () => { location.href = location.pathname; };
 
-  /* 結果視窗的關閉方式:按繼續、點背景、或按 Esc */
-  $('modal-ok').onclick = closeModal;
-  $('modal').onclick = (e) => { if (e.target.id === 'modal') closeModal(); };
+  /* 結果視窗的關閉方式:按繼續、點背景、或按 Esc。
+   * 「繼續」按鈕每次開窗都會重建(結局畫面會換成別的按鈕),
+   * 所以用事件委派綁在容器上,不要綁在按鈕本身。 */
+  $('modal').onclick = (e) => {
+    if (e.target.id === 'modal') closeModal();
+    if (e.target.id === 'modal-ok') closeModal();
+  };
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modalOpen()) closeModal();
     /* 視窗開著的時候,Enter 與空白鍵也當作「繼續」 */
@@ -209,6 +215,17 @@ function showModal(title, entries, onClose) {
   body.innerHTML = '';
   entries.forEach((e) => body.appendChild(makeCard(e)));
   $('modal-head').textContent = title;
+
+  /* 結局畫面會把視窗底部換成重玩按鈕,所以一般結果視窗每次都要還原成「繼續」 */
+  const foot = $('modal-foot');
+  foot.innerHTML = '';
+  const ok = document.createElement('button');
+  ok.className = 'btn main';
+  ok.id = 'modal-ok';
+  ok.textContent = '繼續';
+  ok.onclick = closeModal;
+  foot.appendChild(ok);
+
   modalOnClose = onClose || null;
   $('modal').classList.add('on');
   body.scrollTop = 0;
@@ -411,21 +428,54 @@ function renderActivity(p) {
     act.appendChild(note);
   }
 
-  p.list.forEach((a) => {
+  const DIFF_N = { low: '低', mid: '中', high: '高' };
+  const RISK_N = { none: '無', low: '低', mid: '中', high: '高', extreme: '極高' };
+
+  function venueButton(a) {
     const b = document.createElement('button');
     b.className = 'btn';
     b.disabled = !a.available;
-    const diffN = { low: '低', mid: '中', high: '高' }[a.diff];
-    const riskN = { none: '無', low: '低', mid: '中', high: '高', extreme: '極高' }[a.risk];
-    b.innerHTML = `${a.name}　<span class="hl">接觸 ${a.enc} 人</span><small>` +
+    b.innerHTML = `${a.name}<b>${a.enc} 人</b><small>` +
       (a.available
-        ? `對象難度 ${diffN}｜風險 ${riskN}`
-        : `需要 ${a.lockReason}`) + `</small>`;
+        ? `難度 ${DIFF_N[a.diff]}｜風險 ${RISK_N[a.risk]}`
+        : a.lockReason) + `</small>`;
     if (a.available) {
       b.onclick = () => submitWithModal({ actId: a.id }, a.name);
     }
-    act.appendChild(b);
-  });
+    return b;
+  }
+
+  /* 去得了的地點:兩欄排列 */
+  const open = p.list.filter((a) => a.available);
+  const locked = p.list.filter((a) => !a.available);
+
+  const grid = document.createElement('div');
+  grid.className = 'venues';
+  open.forEach((a) => grid.appendChild(venueButton(a)));
+  act.appendChild(grid);
+
+  /* 去不了的地點:收進折疊區,預設收合。
+   * 保留它們是因為那些門檻本身就是玩家的成長目標,看得到才知道要練什麼。 */
+  if (locked.length > 0) {
+    const wrap = document.createElement('div');
+    wrap.className = 'locked-wrap' + (lockedOpen ? ' open' : '');
+
+    const head = document.createElement('div');
+    head.className = 'locked-head';
+    head.innerHTML = `<span>還去不了的地方（${locked.length}）</span>`;
+    head.onclick = () => {
+      lockedOpen = !lockedOpen;
+      wrap.classList.toggle('open', lockedOpen);
+    };
+    wrap.appendChild(head);
+
+    const lockedGrid = document.createElement('div');
+    lockedGrid.className = 'venues';
+    locked.forEach((a) => lockedGrid.appendChild(venueButton(a)));
+    wrap.appendChild(lockedGrid);
+
+    act.appendChild(wrap);
+  }
 
   const skip = document.createElement('button');
   skip.className = 'btn warn';
@@ -471,10 +521,10 @@ function renderSpecial(p) {
 
 /* ---------- 結局 ---------- */
 
-function renderEnding(e) {
-  const act = $('act');
-  act.innerHTML = '';
-
+/* 建立結局卡。會做兩份:一份放進紀錄區供之後回看,一份放進視窗立刻呈現。
+ * 之所以要用視窗:結局卡高約 800px,而結局畫面的記分板加操作區佔掉六百多,
+ * 可視區間只剩兩百出頭,等於要捲四次才讀得完最重要的一頁。 */
+function buildEndingCard(e) {
   const card = document.createElement('div');
   card.className = 'card gold';
 
@@ -520,22 +570,61 @@ function renderEnding(e) {
     </table>
     <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
   `;
-  logTarget({ semester: game.state.semester, semesterName: '結局' }).appendChild(card);
+  return card;
+}
 
+function renderEnding(e) {
+  const act = $('act');
+  act.innerHTML = '';
+
+  /* 一份留在紀錄區,一份放進視窗 */
+  logTarget({ semester: game.state.semester, semesterName: '結局' })
+    .appendChild(buildEndingCard(e));
+
+  /* 底部操作區:關掉視窗之後還是要能重玩 */
   act.innerHTML = actTitle(`世界種子　${game.seed}`);
-  const again = document.createElement('button');
-  again.className = 'btn main';
-  again.textContent = '↺ 再玩一次（換一個種子）';
-  again.onclick = () => { location.href = location.pathname; };
-  act.appendChild(again);
+  act.appendChild(replayButton('main'));
+  act.appendChild(sameSeedButton());
 
-  const same = document.createElement('button');
-  same.className = 'btn';
-  same.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
-  same.onclick = () => { location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`; };
-  act.appendChild(same);
+  /* 結局用視窗全螢幕呈現,並把重玩按鈕直接放在視窗底部,
+   * 玩家看完就能立刻再開一局,不用先關視窗再找按鈕。 */
+  const box = $('modal-body');
+  box.innerHTML = '';
+  box.appendChild(buildEndingCard(e));
+  $('modal-head').textContent = '生涯總結';
+  const foot = $('modal-foot');
+  foot.innerHTML = '';
+  foot.appendChild(replayButton('main'));
+  const close = document.createElement('button');
+  close.className = 'btn';
+  close.style.marginTop = '8px';
+  close.textContent = '關閉，回頭看紀錄';
+  close.onclick = closeModal;
+  foot.appendChild(close);
+
+  modalOnClose = null;
+  $('modal').classList.add('on');
+  box.scrollTop = 0;
 
   requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight));
+}
+
+function replayButton(cls) {
+  const b = document.createElement('button');
+  b.className = `btn ${cls || ''}`;
+  b.textContent = '↺ 再玩一次（換一個種子）';
+  b.onclick = () => { location.href = location.pathname; };
+  return b;
+}
+
+function sameSeedButton() {
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
+  b.onclick = () => {
+    location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`;
+  };
+  return b;
 }
 
 /* ================= 主更新 ================= */
