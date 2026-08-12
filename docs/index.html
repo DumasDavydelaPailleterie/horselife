@@ -3417,9 +3417,16 @@ const EFFECT_NAMES = {
   slot: '社交場次', kill: '人斬',
 };
 
+/* immune 與 std 不是數值型效果(std 的值甚至是字串,不是數字),
+ * 而且兩者都已經有自己專屬的敘事卡片(「獲得免疫」「確診｜X」),
+ * 這裡的效果標籤只負責數值型效果,重複顯示反而會露出未翻譯的內部代號。 */
+const NON_DISPLAY_KEYS = new Set(['immune', 'std']);
+
 function effectLine(applied) {
   if (!applied || applied.length === 0) return '';
-  const parts = applied.map((a) => {
+  const visible = applied.filter((a) => !NON_DISPLAY_KEYS.has(a.key));
+  if (visible.length === 0) return '';
+  const parts = visible.map((a) => {
     const n = EFFECT_NAMES[a.key] || a.key;
     const v = a.actual !== undefined ? a.actual : a.amount;
     if (v === 0) return `${n} 沒有變化`;
