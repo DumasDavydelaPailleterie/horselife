@@ -3,230 +3,364 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0b1a12">
-<title>HorseLife - 種馬人生模擬器</title>
-<meta name="description" content="大一入學到畢業或退學。每一顆骰子都算數。">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ctext y=%2226%22 font-size=%2226%22%3E%F0%9F%90%8E%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#f4f1e8">
+<title>二一之前</title>
+<meta name="description" content="八個學期，每一次選擇都記在成績單和名單上。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="二一之前">
+<meta property="og:description" content="八個學期，每一次選擇都記在成績單和名單上。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%223%22 fill=%22%23f4f1e8%22/%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2210%22 fill=%22none%22 stroke=%22%23b3261e%22 stroke-width=%222.5%22/%3E%3Cpath d=%22M11 16h10%22 stroke=%22%23b3261e%22 stroke-width=%222.5%22/%3E%3C/svg%3E">
 <style>
 :root{
-  --bg:#0b1a12; --panel:#132920; --panel2:#1a382a; --edge:#2b4d3a;
-  --chalk:#ece7d6; --dim:#93ab9c; --amber:#ffc95c; --clay:#c9764a;
-  --good:#8fd08f; --bad:#e2695c; --blue:#7fb3d5; --gold:#ffd479;
-  --mono:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;
-  --sans:-apple-system,'PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
+  /* 卷宗紙張 */
+  --paper:#f4f1e8;
+  --sheet:#fbfaf5;
+  --sheet-2:#efebdf;
+  /* 墨色 */
+  --ink:#15171b;
+  --ink-2:#4c525c;
+  --ink-3:#7d8590;
+  /* 細線 */
+  --rule:#cfc9b8;
+  --rule-2:#e2ddcf;
+  /* 校務紅印 */
+  --stamp:#b3261e;
+  --stamp-soft:#b3261e18;
+  /* 判定色 */
+  --pass:#1f6b48;
+  --fail:#b3261e;
+  --note:#1f4e79;
+  --warn:#9a5b00;
+
+  --serif:'Noto Serif TC','Songti TC','Source Han Serif TC','SimSun','PMingLiU',serif;
+  --sans:-apple-system,'PingFang TC','Microsoft JhengHei','Noto Sans TC','Helvetica Neue',sans-serif;
+  --num:ui-monospace,'SF Mono','Cascadia Mono',Consolas,'Courier New',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{background:var(--bg);color:var(--chalk);font-family:var(--sans);font-size:15px;line-height:1.6;
-  background-image:radial-gradient(ellipse 120% 60% at 50% -10%,#16352644 0%,transparent 60%)}
-#app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;
+  -webkit-font-smoothing:antialiased}
+#app{max-width:560px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+  background:var(--sheet);box-shadow:0 0 0 1px var(--rule-2)}
 
-/* ---------- 記分板 ---------- */
-#board{position:sticky;top:0;z-index:20;background:linear-gradient(#173125,#122519);
-  border-bottom:2px solid var(--edge);padding:10px 14px 8px;box-shadow:0 6px 18px #0009}
-#bd-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-#bd-name{font-weight:900;font-size:17px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#bd-name small{color:var(--dim);font-weight:500;font-size:12px;margin-left:6px}
-#bd-term{color:var(--amber);font-size:12.5px;font-weight:700;letter-spacing:.06em;white-space:nowrap}
-#btn-restart{background:none;border:1px solid #2b4a38;color:#8fae9c;border-radius:8px;
-  font-size:14px;line-height:1;padding:4px 8px;margin-left:8px;cursor:pointer;flex:none}
-#bd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
-.bd-cell{background:#0d2115;border:1px solid var(--edge);border-radius:6px;padding:4px 6px 3px;text-align:center}
-.bd-cell b{display:block;font-family:var(--mono);font-size:17px;font-weight:700;color:var(--amber);
-  text-shadow:0 0 8px #ffc95c55;line-height:1.2}
-.bd-cell span{font-size:10px;color:var(--dim);letter-spacing:.15em}
-#abrows{margin-top:8px;display:grid;gap:3px}
-.ab{display:flex;align-items:center;gap:7px;font-size:11.5px}
-.ab .nm{width:44px;color:var(--dim);flex:none}
-.ab .bar{flex:1;height:6px;background:#0d2115;border-radius:3px;overflow:hidden;position:relative}
-.ab .bar i{display:block;height:100%;background:linear-gradient(90deg,#3c6a4c,var(--amber));border-radius:3px;transition:.25s}
-.ab .bar em{position:absolute;top:-2px;bottom:-2px;width:2px;background:#e2695caa;border-radius:1px}
-.ab .val{font-family:var(--mono);width:52px;text-align:right;flex:none}
-.ab .val s{color:var(--dim);text-decoration:none;font-size:10px}
-#lamps{display:flex;gap:10px;justify-content:center;margin-top:7px;flex-wrap:wrap}
-.lamp{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--dim);letter-spacing:.08em}
-.lamp i{width:8px;height:8px;border-radius:50%;background:#243c2e;border:1px solid #35543f;display:inline-block;flex:none}
-.lamp.on{color:var(--chalk)} .lamp.on i{background:var(--amber);box-shadow:0 0 8px var(--amber);border-color:var(--amber)}
+/* ================= 學籍卡（頁首） ================= */
+#board{position:sticky;top:0;z-index:20;background:var(--sheet);
+  border-bottom:2px solid var(--ink);padding:10px 14px 9px}
+#board::after{content:'';position:absolute;left:0;right:0;bottom:-5px;height:3px;
+  border-top:1px solid var(--rule);pointer-events:none}
 
-/* ---------- 主紀錄 ---------- */
-#log{flex:1;padding:14px 14px 20px;display:flex;flex-direction:column;gap:10px}
-.card{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:12px 14px;
-  animation:pop .25s ease;overflow-wrap:anywhere}
-@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.card h4{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:700;margin-bottom:6px;
-  display:flex;align-items:center;gap:8px}
-.card h4::before{content:'';width:8px;height:8px;background:var(--clay);border-radius:2px;transform:rotate(45deg);flex:none}
-.card.gold h4::before{background:var(--gold)} .card.bad h4::before{background:var(--bad)}
-.card.good h4::before{background:var(--good)} .card.info h4::before{background:var(--blue)}
-.card.gold{border-color:#6b5a2a;background:linear-gradient(#1d2f1f,#132920)}
-.card p{font-size:14px;white-space:pre-line} .card p+p{margin-top:4px}
-.eff{font-family:var(--mono);font-size:12px;color:var(--chalk);background:#0d2115;
-  border:1px dashed var(--edge);border-radius:6px;padding:5px 8px;margin-top:6px}
-.up{color:var(--good);font-weight:700}.dn{color:var(--bad);font-weight:700}.hl{color:var(--amber);font-weight:700}
-.det{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.75}
-.det .ok{color:var(--good)}
-.yr-head{text-align:center;color:var(--dim);font-size:11px;letter-spacing:.3em;padding:8px 0 0;
-  cursor:pointer;user-select:none}
-.yr-head:hover{color:var(--amber)}
+#bd-top{display:flex;align-items:flex-start;gap:10px}
+#bd-id{flex:1;min-width:0}
+#bd-name{font-family:var(--serif);font-size:21px;font-weight:700;letter-spacing:.02em;
+  line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bd-meta{font-size:11.5px;color:var(--ink-2);margin-top:2px;font-family:var(--num);letter-spacing:.02em}
+#bd-flags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.flag{font-size:10.5px;letter-spacing:.06em;padding:1px 6px;border:1px solid currentColor;border-radius:2px;
+  font-weight:700;line-height:1.6}
+.flag.bad{color:var(--fail)} .flag.good{color:var(--pass)} .flag.note{color:var(--note)}
+
+/* 人斬印章 */
+#killbox{flex:none;text-align:center;border:2px solid var(--stamp);border-radius:3px;
+  padding:3px 9px 2px;color:var(--stamp);background:var(--stamp-soft);
+  transform:rotate(-2.5deg);min-width:62px}
+#bd-kills{display:block;font-family:var(--num);font-size:25px;font-weight:700;line-height:1.05;
+  letter-spacing:-.02em}
+#killbox span{display:block;font-size:9.5px;letter-spacing:.28em;font-weight:700;
+  margin-top:1px;padding-left:.28em}
+
+#btn-restart{flex:none;background:none;border:1px solid var(--rule);color:var(--ink-3);
+  border-radius:2px;font-size:15px;line-height:1;padding:5px 7px;cursor:pointer;font-family:var(--serif)}
+#btn-restart:hover{border-color:var(--ink);color:var(--ink)}
+
+/* 八學期進度格 */
+#semstrip{display:flex;gap:3px;margin-top:9px;align-items:stretch}
+.sem{flex:1;text-align:center;font-size:9.5px;font-family:var(--num);color:var(--ink-3);
+  border:1px solid var(--rule-2);border-radius:2px;padding:2px 0 1px;background:var(--sheet-2);
+  letter-spacing:-.03em}
+.sem.done{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.sem.now{border:1.5px solid var(--stamp);color:var(--stamp);background:var(--sheet);font-weight:700}
+.sem.fail{background:var(--fail);color:#fff;border-color:var(--fail)}
+
+/* 階段列 */
+#phaseline{display:flex;gap:0;margin-top:6px;border-top:1px solid var(--rule-2);padding-top:5px}
+.ph{flex:1;text-align:center;font-size:10px;color:var(--ink-3);letter-spacing:.02em;position:relative}
+.ph.on{color:var(--stamp);font-weight:700}
+.ph.on::after{content:'';position:absolute;left:22%;right:22%;bottom:-5px;height:2px;background:var(--stamp)}
+
+/* 能力細線條 */
+#abrows{margin-top:8px;display:grid;gap:4px}
+.ab{display:flex;align-items:center;gap:8px;font-size:11.5px}
+.ab .nm{width:38px;flex:none;color:var(--ink-2);letter-spacing:.04em}
+.ab .track{flex:1;height:11px;position:relative;border-bottom:1px solid var(--rule)}
+.ab .fill{position:absolute;left:0;bottom:0;height:4px;background:var(--ink)}
+.ab.short .fill{background:var(--fail)}
+.ab .tick{position:absolute;bottom:-3px;width:1.5px;height:11px;background:var(--stamp)}
+.ab .tick::after{content:'';position:absolute;top:-3px;left:-2px;width:5.5px;height:3px;background:var(--stamp);
+  clip-path:polygon(50% 100%,0 0,100% 0)}
+.ab .tick.met{background:var(--pass)} .ab .tick.met::after{background:var(--pass)}
+.ab .val{font-family:var(--num);width:54px;text-align:right;flex:none;font-size:12px;font-weight:700}
+.ab .val s{color:var(--ink-3);text-decoration:none;font-size:10px;font-weight:400}
+.ab.short .val{color:var(--fail)}
+
+/* ================= 紀錄（卷宗內頁） ================= */
+#log{flex:1;padding:12px 14px 18px;display:flex;flex-direction:column}
+.yr-block{margin-bottom:2px}
+.yr-head{font-family:var(--serif);font-size:12px;letter-spacing:.22em;color:var(--ink-2);
+  padding:9px 0 7px;cursor:pointer;user-select:none;border-bottom:1px solid var(--rule);
+  display:flex;justify-content:space-between;align-items:baseline}
+.yr-head::after{content:'－';font-family:var(--num);color:var(--ink-3);font-size:11px}
+.yr-block.collapsed .yr-head::after{content:'＋'}
+.yr-head:hover{color:var(--ink)}
 .yr-block.collapsed .yr-body{display:none}
-.yr-block.collapsed .yr-head::after{content:' ▸'}
-.yr-block:not(.collapsed) .yr-head::after{content:' ▾'}
-.yr-body{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.yr-body{display:flex;flex-direction:column}
 
-/* ---------- 操作區 ---------- */
-#act{position:sticky;bottom:0;z-index:20;background:linear-gradient(#122519ee,#0b1a12);
-  border-top:2px solid var(--edge);padding:12px 14px calc(12px + env(safe-area-inset-bottom));
-  backdrop-filter:blur(6px)}
-#act .title{font-size:12px;letter-spacing:.14em;color:var(--dim);margin-bottom:8px;font-weight:700}
-.btn{display:block;width:100%;background:var(--panel2);border:1px solid var(--edge);color:var(--chalk);
-  font-family:var(--sans);font-size:15px;font-weight:700;border-radius:10px;padding:11px 14px;margin-top:8px;
-  cursor:pointer;text-align:left;transition:.15s}
-.btn:active{transform:scale(.98)} .btn:hover{border-color:var(--amber)}
-.btn:disabled{opacity:.35;cursor:not-allowed}
-.btn small{display:block;font-weight:400;font-size:12px;color:var(--dim);margin-top:2px}
-.btn.main{background:linear-gradient(#2a5038,#1f3f2c);border-color:#3c6a4c;text-align:center}
-.btn.gold{background:linear-gradient(#4a3d1c,#332a13);border-color:#6b5a2a}
-.btn.warn{border-color:#6a3c3c}
-#act-toggle{display:block;margin:0 auto -4px;background:#0e2015;border:1px solid #2b4a38;
-  border-bottom:none;color:#8fae9c;font-size:11px;padding:3px 14px;border-radius:10px 10px 0 0;cursor:pointer}
+/* 一則紀錄 */
+.card{padding:10px 0 11px;border-bottom:1px solid var(--rule-2);animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.card h4{font-size:10.5px;letter-spacing:.16em;color:var(--ink-3);font-weight:700;margin-bottom:4px;
+  display:flex;align-items:center;gap:6px;font-family:var(--sans)}
+.card h4::before{content:'';width:14px;height:2px;background:var(--ink-3);flex:none}
+.card.good h4{color:var(--pass)} .card.good h4::before{background:var(--pass)}
+.card.bad h4{color:var(--fail)} .card.bad h4::before{background:var(--fail)}
+.card.info h4{color:var(--note)} .card.info h4::before{background:var(--note)}
+.card.gold h4{color:var(--stamp)} .card.gold h4::before{background:var(--stamp);height:3px}
+.card p{font-family:var(--serif);font-size:14.5px;line-height:1.78;white-space:pre-line;color:var(--ink)}
+.card.gold{background:linear-gradient(var(--sheet-2),var(--sheet));padding-left:11px;
+  border-left:3px solid var(--stamp);margin:2px 0}
+
+/* 效果標籤 */
+.eff{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.eff span{font-family:var(--num);font-size:11px;padding:1px 5px;border:1px solid var(--rule);
+  border-radius:2px;background:var(--sheet-2);letter-spacing:-.01em;line-height:1.7}
+.eff .up{color:var(--pass);border-color:#1f6b4855}
+.eff .dn{color:var(--fail);border-color:#b3261e55}
+
+/* 對象清單 */
+.det{margin-top:7px;border-top:1px dotted var(--rule);padding-top:6px}
+.det .row{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:1.5px 0;
+  font-family:var(--num);color:var(--ink-2)}
+.det .row b{font-family:var(--sans);font-weight:400;color:var(--ink-2)}
+.det .row.ok b{color:var(--ink);font-weight:700}
+.det .row.ok{color:var(--pass)}
+
+/* ================= 操作區（受理欄） ================= */
+/* 收合標籤與操作區包在同一個 sticky 容器裡。
+ * 先前兩者是各自獨立的兄弟元素,只有操作區是 sticky,
+ * 結果標籤留在文件流的原位、被固定在底部的操作區蓋過去,
+ * 壓在第一個按鈕上面擋住點擊(實測重疊 3px)。 */
+#dock{position:sticky;bottom:0;z-index:20}
+#act-toggle{display:block;margin:0 auto -1px;background:var(--sheet);border:1px solid var(--rule);
+  border-bottom:none;color:var(--ink-3);font-size:10.5px;padding:3px 16px;
+  border-radius:3px 3px 0 0;cursor:pointer;letter-spacing:.08em;position:relative;z-index:1}
+#act-toggle:hover{color:var(--ink);border-color:var(--ink)}
+#act{background:var(--sheet);border-top:2px solid var(--ink);
+  padding:10px 14px calc(11px + env(safe-area-inset-bottom))}
 #act.collapsed{display:none!important}
+#act .title{font-family:var(--serif);font-size:12.5px;letter-spacing:.1em;color:var(--ink-2);
+  margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--rule-2);font-weight:700}
+#act .title b{color:var(--stamp);font-family:var(--num)}
+#act .desc{font-family:var(--serif);font-size:13.5px;color:var(--ink-2);line-height:1.7;margin-bottom:8px}
 
-/* ---------- 骰子 ----------
-   原本的樣式是棒球版留下來的:白色方塊配紅色虛線內框,那是棒球的縫線。
-   重新設計成真正的骰子:骨白色骰身、圓點點數、擲出六點時整顆變成琥珀金
-   並帶一個馬蹄鐵印記——六點是這個遊戲裡最有份量的一擲(點數最高,
-   也是未來隱藏素質覺醒的判定依據),值得有自己的樣子。 */
-#dice{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px}
-.die{width:48px;height:48px;border-radius:11px;position:relative;cursor:pointer;transition:.15s;
+/* 按鈕：文件表單的選項列 */
+.btn{display:block;width:100%;background:var(--sheet);border:1px solid var(--rule);color:var(--ink);
+  font-family:var(--sans);font-size:14.5px;font-weight:700;border-radius:3px;
+  padding:10px 12px;margin-top:6px;cursor:pointer;text-align:left;transition:.12s;
+  min-height:44px;position:relative}
+.btn:hover{border-color:var(--ink);background:var(--sheet-2)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.42;cursor:not-allowed;background:var(--sheet-2)}
+.btn small{display:block;font-weight:400;font-size:11.5px;color:var(--ink-2);margin-top:2px;
+  font-family:var(--num);letter-spacing:-.01em}
+.btn.main{background:var(--ink);color:var(--sheet);border-color:var(--ink);text-align:center}
+.btn.main:hover{background:#000}
+.btn.main small{color:#ffffffb0}
+.btn.stamp{border:2px solid var(--stamp);color:var(--stamp)}
+.btn.stamp small{color:#b3261ec0}
+.btn.warn{border-color:#b3261e66}
+.btn.warn small{color:var(--fail)}
+
+/* 場所兩欄 */
+.venues{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.venues .btn{margin-top:0;padding:9px 10px;font-size:14px;min-height:52px}
+.venues .btn small{font-size:10.5px;margin-top:2px}
+.venues .btn i{font-style:normal;color:var(--stamp);font-family:var(--num);font-weight:700;
+  font-size:12px;margin-left:4px}
+.locked-wrap{margin-top:7px;border-top:1px dashed var(--rule);padding-top:6px}
+.locked-head{font-size:11.5px;color:var(--ink-3);cursor:pointer;user-select:none;
+  display:flex;justify-content:space-between;align-items:center;padding:3px 0;letter-spacing:.04em}
+.locked-head::after{content:'＋';font-family:var(--num)}
+.locked-wrap.open .locked-head::after{content:'－'}
+.locked-head:hover{color:var(--ink)}
+.locked-wrap .venues{display:none}
+.locked-wrap.open .venues{display:grid}
+.locked-wrap .btn{opacity:.55}
+
+/* 對象卷宗（特殊角色決策） */
+#dossier{border:1px solid var(--ink);border-radius:3px;padding:10px 12px;margin-bottom:8px;
+  background:var(--sheet-2)}
+#dossier .dn{font-family:var(--serif);font-size:18px;font-weight:700;line-height:1.25}
+#dossier .dt{display:inline-block;font-size:11px;color:var(--stamp);border:1px solid var(--stamp);
+  border-radius:2px;padding:0 5px;margin-left:6px;font-weight:700;vertical-align:2px;letter-spacing:.04em}
+#dossier .dd{font-family:var(--serif);font-size:13.5px;color:var(--ink-2);line-height:1.75;margin-top:6px}
+#dossier .dm{font-family:var(--num);font-size:11.5px;color:var(--ink-2);margin-top:7px;
+  border-top:1px dotted var(--rule);padding-top:5px;display:flex;gap:12px}
+
+/* ================= 骰子 ================= */
+#dice{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.die{width:46px;height:46px;border-radius:4px;position:relative;cursor:pointer;transition:.12s;
   display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-  padding:7px;gap:2px;
-  background:linear-gradient(158deg,#f6f1e2 0%,#e6dfcb 55%,#d6cdb4 100%);
-  box-shadow:inset 0 -3px 0 #0000001f, inset 0 1px 0 #fff9, 0 3px 6px #0007}
-/* 圓點 */
-.die i{background:radial-gradient(circle at 35% 30%,#33513c,#12251a 70%);border-radius:50%;
-  box-shadow:inset 0 1px 1px #0006;align-self:center;justify-self:center;
-  width:100%;height:100%;max-width:9px;max-height:9px}
-/* 九宮格位置 */
+  padding:7px;gap:2px;background:var(--sheet);border:1.5px solid var(--ink)}
+.die i{background:var(--ink);border-radius:50%;align-self:center;justify-self:center;
+  width:100%;height:100%;max-width:8px;max-height:8px}
 .pc1{grid-area:1/1}.pc2{grid-area:1/2}.pc3{grid-area:1/3}
 .pc4{grid-area:2/1}.pc5{grid-area:2/2}.pc6{grid-area:2/3}
 .pc7{grid-area:3/1}.pc8{grid-area:3/2}.pc9{grid-area:3/3}
-/* 六點:整顆變金,帶馬蹄鐵印記 */
-.die.six{background:linear-gradient(158deg,#ffe1a3 0%,#ffc95c 55%,#e39f34 100%);
-  box-shadow:inset 0 -3px 0 #00000026, inset 0 1px 0 #fffc, 0 0 14px #ffc95c66, 0 3px 6px #0007}
-.die.six i{background:radial-gradient(circle at 35% 30%,#6b4a12,#2e1d04 70%)}
-.die.six::after{content:'🐎';position:absolute;right:2px;bottom:0;font-size:11px;
-  opacity:.55;line-height:1;pointer-events:none}
-/* 已使用與選取狀態 */
-.die.used{opacity:.2;transform:scale(.86);cursor:default;filter:saturate(.4)}
-.die.active{outline:3px solid var(--amber);outline-offset:2px;transform:translateY(-2px)}
-.die.active.six{outline-color:#fff2c8}
-/* 骰子點數的文字備援(給輔助工具讀,畫面上不顯示) */
+/* 六點：紅印 */
+.die.six{border-color:var(--stamp);background:var(--stamp-soft)}
+.die.six i{background:var(--stamp)}
+.die.used{opacity:.2;cursor:default}
+.die.active{outline:2px solid var(--stamp);outline-offset:2px;background:var(--sheet-2)}
 .die b{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-.alloc{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.alloc .btn{margin-top:0}
-.pool{font-family:var(--mono);font-size:13px;color:var(--amber);margin-bottom:8px}
+.alloc{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.alloc .btn{margin-top:0;min-height:56px}
 
-/* 開場 */
-#start{position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;
-  background-image:radial-gradient(ellipse 120% 50% at 50% -5%,#1d4630aa,transparent 60%)}
-#start .wrap{max-width:560px;margin:0 auto;padding:38px 22px 60px}
-#start h1{font-size:34px;font-weight:900;letter-spacing:.06em;line-height:1.25;margin-top:16px}
-#start h1 em{font-style:normal;color:var(--amber)}
-#start .sub{color:var(--dim);margin:10px 0 24px;font-size:13.5px;letter-spacing:.05em}
-.field{margin-top:18px}
-.field label{display:block;font-size:12px;letter-spacing:.2em;color:var(--dim);font-weight:700;margin-bottom:8px}
-.field input{width:100%;background:var(--panel);border:1px solid var(--edge);border-radius:10px;color:var(--chalk);
-  font-family:var(--sans);font-size:16px;padding:11px 14px;outline:none}
-.field input:focus{border-color:var(--amber)}
-.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.seg button{background:var(--panel);border:1px solid var(--edge);border-radius:10px;color:var(--dim);
-  font-family:var(--sans);font-size:14.5px;font-weight:700;padding:11px 4px;cursor:pointer}
-.seg button.on{background:var(--panel2);color:var(--amber);border-color:var(--amber)}
-#dept-note{font-size:12px;color:var(--dim);margin-top:8px;min-height:34px}
-.seedline{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:20px}
-.seedline input{width:120px;background:#0e2015;color:var(--amber);border:1px solid #2b4a38;
-  border-radius:6px;padding:2px 6px;font-family:inherit;font-size:12px;text-align:center}
-.horse{width:64px;height:64px;border-radius:50%;background:var(--chalk);display:flex;
-  align-items:center;justify-content:center;font-size:36px;box-shadow:inset -6px -8px 0 #00000014}
-#ver{position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);
-  opacity:.55;font-family:var(--mono);z-index:60;pointer-events:none}
+/* ================= 開場（申請表） ================= */
+#start{position:fixed;inset:0;z-index:50;background:var(--paper);overflow-y:auto}
+#start .wrap{max-width:560px;margin:0 auto;background:var(--sheet);min-height:100%;
+  padding:34px 22px 50px;box-shadow:0 0 0 1px var(--rule-2)}
+#start .kicker{font-family:var(--num);font-size:10.5px;letter-spacing:.24em;color:var(--ink-3);
+  border-bottom:1px solid var(--rule);padding-bottom:7px;display:flex;justify-content:space-between}
+#start h1{font-family:var(--serif);font-size:44px;font-weight:900;letter-spacing:.1em;
+  line-height:1.15;margin:20px 0 0;text-indent:.1em}
+#start .sub{font-family:var(--serif);color:var(--ink-2);margin:11px 0 0;font-size:14.5px;line-height:1.8}
+/* 紅印的位置要避開副標第一行,否則圓弧下緣會壓到「名單上」那幾個字 */
+#start .seal{position:absolute;top:60px;right:24px;width:72px;height:72px;border:2.5px solid var(--stamp);
+  border-radius:50%;color:var(--stamp);display:flex;align-items:center;justify-content:center;
+  transform:rotate(-11deg);opacity:.85;pointer-events:none}
+#start .seal span{font-family:var(--serif);font-size:15px;font-weight:900;letter-spacing:.06em;
+  line-height:1.15;text-align:center}
+.field{margin-top:22px}
+.field label{display:block;font-size:11px;letter-spacing:.2em;color:var(--ink-2);font-weight:700;
+  margin-bottom:7px;font-family:var(--num)}
+.field input{width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--ink);
+  color:var(--ink);font-family:var(--serif);font-size:19px;padding:5px 2px;outline:none}
+.field input::placeholder{color:var(--ink-3);font-size:17px}
+.field input:focus{border-color:var(--stamp)}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.seg button{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;color:var(--ink-2);
+  font-family:var(--sans);font-size:14.5px;font-weight:700;padding:11px 6px;cursor:pointer;min-height:46px}
+.seg button.on{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+#dept-note{margin-top:10px;border:1px solid var(--rule);border-left:3px solid var(--ink);
+  padding:8px 10px;background:var(--sheet-2);min-height:70px}
+#dept-note .n1{font-family:var(--serif);font-size:14px;font-weight:700;line-height:1.6}
+#dept-note .n2{font-family:var(--num);font-size:11.5px;color:var(--ink-2);margin-top:5px;line-height:1.75}
+.seedline{font-family:var(--num);font-size:11.5px;color:var(--ink-2);margin-top:24px;
+  border-top:1px solid var(--rule);padding-top:10px;line-height:1.9}
+.seedline input{width:118px;background:var(--sheet-2);color:var(--ink);border:1px solid var(--rule);
+  border-radius:2px;padding:2px 6px;font-family:inherit;font-size:11.5px;text-align:center}
+.seedline a{color:var(--note)}
+#ver{font-family:var(--num);font-size:10px;letter-spacing:.1em;color:var(--ink-3)}
 
-/* ---------- 社交活動選單(兩欄 + 未解鎖折疊) ----------
-   八個地點如果一欄排,面板會高到把紀錄區整個擠掉(實測佔畫面 94%)。
-   改成兩欄,並把去不了的地點收進折疊區,面板高度可以減少一半以上。 */
-.venues{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
-.venues .btn{margin-top:0;padding:8px 9px;font-size:14px;line-height:1.35}
-.venues .btn small{font-size:10.5px;margin-top:1px;line-height:1.4}
-.venues .btn b{color:var(--amber);font-size:12px;font-weight:700;margin-left:3px}
-.locked-head{margin-top:8px;background:#0e2015;border:1px solid #2b4a38;border-radius:8px;
-  color:#8fae9c;font-size:12px;padding:7px 10px;cursor:pointer;user-select:none;
-  display:flex;justify-content:space-between;align-items:center}
-.locked-head:hover{border-color:var(--amber);color:var(--chalk)}
-.locked-head::after{content:'▸';font-size:11px}
-.locked-wrap.open .locked-head::after{content:'▾'}
-.locked-wrap .venues{display:none}
-.locked-wrap.open .venues{display:grid}
-
-/* ---------- 結果視窗 ----------
-   社交活動的選項多達十一個,底部面板會把紀錄區擠出畫面,
-   所以行動的結果改用視窗跳出來,確保玩家一定看得到。 */
+/* ================= 視窗（受理回覆） ================= */
 #modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
-  background:#04100a;background:rgba(4,16,10,.82);padding:16px;backdrop-filter:blur(3px)}
-#modal.on{display:flex;animation:fade .18s ease}
-@keyframes fade{from{opacity:0}to{opacity:1}}
-#modal-box{background:var(--panel);border:1px solid var(--edge);border-radius:12px;
-  width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;
-  box-shadow:0 18px 48px #000b;animation:rise .2s ease}
-@keyframes rise{from{transform:translateY(14px)}to{transform:none}}
-#modal-head{padding:12px 16px 10px;border-bottom:1px solid var(--edge);
-  font-size:12px;letter-spacing:.18em;color:var(--dim);font-weight:700;flex:none}
-#modal-body{padding:12px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px;
-  -webkit-overflow-scrolling:touch}
-#modal-body .card{animation:none}
-#modal-foot{padding:10px 16px calc(12px + env(safe-area-inset-bottom));
-  border-top:1px solid var(--edge);flex:none}
+  background:#15171bb0;padding:16px}
+#modal.on{display:flex;animation:fade .16s ease}
+#modal-box{background:var(--sheet);border:1px solid var(--ink);border-radius:3px;
+  width:100%;max-width:470px;max-height:82vh;display:flex;flex-direction:column;
+  box-shadow:0 16px 40px #15171b55;animation:rise .18s ease}
+@keyframes rise{from{transform:translateY(10px)}to{transform:none}}
+#modal-head{font-family:var(--serif);padding:11px 15px 9px;border-bottom:2px solid var(--ink);
+  font-size:14px;letter-spacing:.08em;font-weight:700;flex:none;
+  display:flex;justify-content:space-between;align-items:baseline}
+#modal-head::after{content:'受理';font-family:var(--num);font-size:9.5px;letter-spacing:.2em;
+  color:var(--stamp);border:1px solid var(--stamp);border-radius:2px;padding:0 4px;font-weight:700}
+#modal-body{padding:4px 15px 10px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+#modal-body .card:last-child{border-bottom:none}
+#modal-foot{padding:9px 15px calc(11px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--rule);flex:none}
 #modal-foot .btn{margin-top:0}
+#modal-foot .btn+.btn{margin-top:6px}
 
-/* 結局 */
-.end-hero{text-align:center;padding:6px 0 2px}
-.end-hero .tier{font-size:26px;font-weight:900;color:var(--gold);letter-spacing:.04em}
-.end-hero .kills{font-family:var(--mono);font-size:48px;font-weight:700;color:var(--amber);
-  text-shadow:0 0 16px #ffc95c44;line-height:1.1;margin-top:4px}
-.end-hero .kills small{font-size:14px;color:var(--dim);display:block;letter-spacing:.3em;font-family:var(--sans)}
-table.fin{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:6px}
-table.fin th,table.fin td{border-bottom:1px solid var(--edge);padding:4px;text-align:right}
-table.fin th{color:var(--dim);font-weight:500}
-table.fin td:first-child,table.fin th:first-child{text-align:left}
-.namelist{font-size:12px;color:var(--dim);line-height:1.9;margin-top:6px}
+/* ================= 結局（結案報告） ================= */
+.end-hero{border-bottom:2px solid var(--ink);padding:4px 0 10px;margin-bottom:9px}
+.end-hero .tier{font-family:var(--serif);font-size:23px;font-weight:900;letter-spacing:.04em;line-height:1.3}
+.end-hero .num{display:flex;align-items:baseline;gap:8px;margin-top:6px}
+.end-hero .num b{font-family:var(--num);font-size:46px;font-weight:700;color:var(--stamp);
+  line-height:1;letter-spacing:-.03em}
+.end-hero .num span{font-size:11px;letter-spacing:.2em;color:var(--ink-2);font-weight:700}
+table.fin{width:100%;border-collapse:collapse;font-family:var(--num);font-size:12px;margin-top:8px}
+table.fin th,table.fin td{border-bottom:1px solid var(--rule-2);padding:5px 2px;text-align:right}
+table.fin th{color:var(--ink-3);font-weight:400;font-size:10.5px;letter-spacing:.1em;
+  border-bottom:1px solid var(--rule)}
+table.fin td:first-child,table.fin th:first-child{text-align:left;font-family:var(--sans);color:var(--ink-2)}
+table.fin td{font-weight:700}
+.namelist{font-family:var(--serif);font-size:13px;color:var(--ink-2);line-height:2;margin-top:10px;
+  border-top:1px solid var(--rule);padding-top:8px}
+.namelist .h{display:block;font-family:var(--num);font-size:10.5px;letter-spacing:.2em;
+  color:var(--ink-3);margin-bottom:3px;font-weight:700}
+.namelist .g{color:var(--pass);font-weight:700}
+.namelist .b{color:var(--fail);font-weight:700}
+.namelist .x{color:var(--ink-3)}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:360px){
+  #start h1{font-size:38px}
+  .venues{gap:5px}
+  .ab .nm{width:34px}
+}
 </style>
 </head>
 <body>
-<div id="ver"></div>
 
 <div id="start">
   <div class="wrap">
-    <div class="horse">🐎</div>
-    <h1>HorseLife<br><em>種馬人生模擬器</em></h1>
-    <p class="sub">大一入學 → 上學期・寒假・下學期・暑假 → 週而復始 → 畢業或退學。每一顆骰子都算數。</p>
+    <div class="kicker"><span>學 生 事 務 處 ・ 個 案 建 檔</span><span id="ver"></span></div>
+    <div class="seal"><span>建檔<br>受理</span></div>
+    <h1>二一之前</h1>
+    <p class="sub">八個學期，每一次選擇都記在成績單和名單上。<br>期末沒過就沒有下一頁。</p>
 
     <div class="field">
-      <label>主角姓名</label>
-      <input id="in-name" maxlength="10" placeholder="例如：朱董">
+      <label>學 生 姓 名</label>
+      <input id="in-name" maxlength="10" placeholder="朱董">
     </div>
 
     <div class="field">
-      <label>學院</label>
+      <label>就 讀 學 系</label>
       <div class="seg" id="seg-dept"></div>
       <div id="dept-note"></div>
     </div>
 
-    <button class="btn main" style="margin-top:24px" id="btn-start">開始生涯 ▸ 大一上學期</button>
+    <button class="btn main" style="margin-top:26px" id="btn-start">建檔並開始 ▸ 大一上學期</button>
 
-    <p class="seedline">世界種子
+    <p class="seedline">檔案編號
       <input id="seed-show" maxlength="24">
-      · <a href="#" id="seed-re" style="color:var(--blue)">換一個</a><br>
-      相同種子＋相同選擇＝相同人生（可直接輸入朋友的種子碼）</p>
+      <a href="#" id="seed-re">重新編號</a><br>
+      相同編號加上相同選擇，會得到完全相同的一份檔案。<br>
+      把整串網址給別人，對方就會拿到跟你一樣的開局。</p>
+  </div>
+</div>
+
+<div id="app">
+  <header id="board" style="display:none">
+    <div id="bd-top">
+      <div id="bd-id">
+        <div id="bd-name"></div>
+        <div id="bd-meta"></div>
+        <div id="bd-flags"></div>
+      </div>
+      <div id="killbox"><b id="bd-kills">0</b><span>人斬</span></div>
+      <button id="btn-restart" title="重新建檔">↺</button>
+    </div>
+    <div id="semstrip"></div>
+    <div id="phaseline"></div>
+    <div id="abrows"></div>
+  </header>
+
+  <main id="log"></main>
+
+  <div id="dock">
+    <button id="act-toggle" style="display:none">收 合</button>
+    <footer id="act" style="display:none"></footer>
   </div>
 </div>
 
@@ -234,29 +368,8 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
   <div id="modal-box">
     <div id="modal-head"></div>
     <div id="modal-body"></div>
-    <div id="modal-foot"><button class="btn main" id="modal-ok">繼續</button></div>
+    <div id="modal-foot"><button class="btn main" id="modal-ok">確 認</button></div>
   </div>
-</div>
-
-<div id="app">
-  <header id="board" style="display:none">
-    <div id="bd-top">
-      <div id="bd-name"></div>
-      <div id="bd-term"></div>
-      <button id="btn-restart" title="重新開始">↺</button>
-    </div>
-    <div id="bd-grid">
-      <div class="bd-cell"><b id="bd-age">18</b><span>年齡</span></div>
-      <div class="bd-cell"><b id="bd-year">2026</b><span>年份</span></div>
-      <div class="bd-cell"><b id="bd-ovr">0</b><span>綜合</span></div>
-      <div class="bd-cell"><b id="bd-kills">0</b><span>生涯人斬</span></div>
-    </div>
-    <div id="abrows"></div>
-    <div id="lamps"></div>
-  </header>
-  <main id="log"></main>
-  <button id="act-toggle" style="display:none">⌄ 收合選項</button>
-  <footer id="act" style="display:none"></footer>
 </div>
 
 <script>
@@ -3007,13 +3120,16 @@ function createGame({ name, dept, seed }) {
         const r = runActivity(S, action.actId, rng);
         S.slots--;
 
-        /* 一般對象的批次結果 */
+        /* 一般對象的批次結果。detail 給結構化資料,由畫面決定怎麼排 */
         if (r.results.length > 0) {
-          const lines = r.results.map((x) =>
-            `${x.target.name}　成功率 ${Math.round(x.rate)}%　${x.success ? '→ 成功' : '→ 沒有下文'}`);
+          const lines = r.results.map((x) => ({
+            name: x.target.name,
+            rate: Math.round(x.rate),
+            ok: x.success,
+          }));
           push(r.gained > 0 ? 'good' : 'info',
-            `社交活動｜${r.activity.name}`,
-            `接觸了 ${r.results.length} 位對象，成功 ${r.gained} 位。`,
+            `${r.activity.name}`,
+            `接觸 ${r.results.length} 位，成立 ${r.gained} 位。`,
             { detail: lines, gained: r.gained });
         } else {
           push('info', `社交活動｜${r.activity.name}`, '這一場沒有遇到什麼普通的對象。');
@@ -3108,6 +3224,8 @@ function createGame({ name, dept, seed }) {
     std: S.std, stdName: S.std ? CONFIG.std[S.std].name : null,
     stdSemesters: S.stdSemesters || 0, immune: !!S.immune,
     over: S.over,
+    /* 給頁首的學期進度格判斷「這一格是不是被退學的那一格」 */
+    graduated: S.overReason === 'graduated',
   });
 
   /* 啟動 */
@@ -3128,7 +3246,7 @@ function createGame({ name, dept, seed }) {
 
 
 
-const APP_VER = 'v0.1.0';
+const APP_VER = 'v0.2.0';
 const $ = (id) => document.getElementById(id);
 
 let game = null;
@@ -3192,15 +3310,19 @@ function showDeptNote() {
   const d = DEPTS[chosenDept];
   const s = d.start;
   $('dept-note').innerHTML =
-    `<b style="color:var(--chalk)">${d.note}</b><br>` +
-    `起始 體力 ${s.sta}・學力 ${s.int}・肌力 ${s.str}・技巧力 ${s.skl}　｜　` +
-    `畢業門檻 學力 ${d.examInt[7]}・肌力 ${d.examStr[7]}`;
+    `<div class="n1">${d.note}</div>`
+    + `<div class="n2">入學能力　體力 ${s.sta}　學力 ${s.int}　肌力 ${s.str}　技巧力 ${s.skl}<br>`
+    + `畢業門檻　學力 ${d.examInt[7]}　肌力 ${d.examStr[7]}</div>`;
 }
 
 function start() {
   const name = ($('in-name').value || '').trim() || '朱董';
   seed = ($('seed-show').value || '').trim() || randomSeed();
-  history.replaceState(null, '', `?seed=${encodeURIComponent(seed)}`);
+  /* 只覆寫 seed,其他參數原樣保留。
+   * 先前是直接寫成 '?seed=xxx',會把網址上其他參數全部吃掉。 */
+  const q = new URLSearchParams(location.search);
+  q.set('seed', seed);
+  history.replaceState(null, '', `?${q.toString()}`);
 
   game = createGame({ name, dept: chosenDept, seed });
   $('start').style.display = 'none';
@@ -3210,7 +3332,7 @@ function start() {
   $('act-toggle').onclick = () => {
     const a = $('act');
     a.classList.toggle('collapsed');
-    $('act-toggle').textContent = a.classList.contains('collapsed') ? '⌃ 展開選項' : '⌄ 收合選項';
+    $('act-toggle').textContent = a.classList.contains('collapsed') ? '展 開' : '收 合';
   };
   lastRenderedLog = 0;
   refresh();
@@ -3220,40 +3342,63 @@ function start() {
 
 function board() {
   const i = game.info();
-  const stdBadge = i.std
-    ? `<small style="color:var(--bad);font-weight:700">${i.stdName}</small>`
-    : (i.immune ? '<small style="color:var(--good);font-weight:700">免疫</small>' : '');
-  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>${stdBadge}`;
-  $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
-  $('bd-age').textContent = i.age;
-  $('bd-year').textContent = i.year;
-  $('bd-ovr').textContent = i.ovr;
+
+  $('bd-name').textContent = i.name;
+  $('bd-meta').textContent =
+    `${i.dept}　${i.year} 年　${i.age} 歲　綜合 ${i.ovr}`;
+
+  /* 狀態標記:健康狀況與風評,用文件上的註記樣式呈現 */
+  const flags = [];
+  if (i.std) flags.push(`<span class="flag bad">確診 ${i.stdName}</span>`);
+  else if (i.immune) flags.push('<span class="flag good">已具免疫</span>');
+  if (i.rep >= 24) flags.push('<span class="flag bad">風評不佳</span>');
+  else if (i.rep >= 10) flags.push('<span class="flag note">已有風聲</span>');
+  if (i.mentorFound) flags.push('<span class="flag note">已受指導</span>');
+  $('bd-flags').innerHTML = flags.join('');
+
   $('bd-kills').textContent = i.kills;
 
-  /* 能力條:紅色刻度標示本學期期末考門檻 */
+  /* 八個學期的進度格:過去實心、當前紅框、未來留白 */
+  const strip = $('semstrip');
+  strip.innerHTML = SEMESTER_NAMES.map((n, idx) => {
+    const num = idx + 1;
+    let cls = '';
+    if (i.over && !i.graduated && num === i.semester) cls = 'fail';
+    else if (num < i.semester) cls = 'done';
+    else if (num === i.semester && !i.over) cls = 'now';
+    return `<span class="sem ${cls}">${n.replace('大', '')}</span>`;
+  }).join('');
+
+  /* 五個階段:當前那個標紅並加底線,比燈號好讀 */
+  $('phaseline').innerHTML = PHASES.map((p) =>
+    `<span class="ph ${p === i.phase && !i.over ? 'on' : ''}">${PHASE_NAMES[p]}</span>`).join('');
+
+  /* 能力細線條。紅色三角刻度標示本學期期末門檻,達標轉綠 */
   const rows = $('abrows');
   rows.innerHTML = '';
   for (const k of ['sta', 'int', 'str', 'skl']) {
-    const v = i.ab[k], cap = i.pot[k];
-    const pctW = Math.min(100, (v / Math.max(cap, 1)) * 100);
-    let mark = '';
-    if (i.exam && (k === 'int' || k === 'str')) {
-      const need = k === 'int' ? i.exam.int : i.exam.str;
-      const mp = Math.min(100, (need / Math.max(cap, 1)) * 100);
-      const short = v < need;
-      mark = `<em style="left:${mp}%;${short ? '' : 'background:#8fd08faa'}" title="期末門檻 ${need}"></em>`;
-    }
-    const short = i.exam && ((k === 'int' && v < i.exam.int) || (k === 'str' && v < i.exam.str));
-    rows.insertAdjacentHTML('beforeend',
-      `<div class="ab"><span class="nm">${ABL[k]}</span>` +
-      `<span class="bar"><i style="width:${pctW}%"></i>${mark}</span>` +
-      `<span class="val" ${short ? 'style="color:var(--bad)"' : ''}>${v}<s>/${cap}</s></span></div>`);
-  }
+    const v = i.ab[k];
+    const cap = i.pot[k];
+    const w = Math.min(100, (v / Math.max(cap, 1)) * 100);
 
-  /* 階段燈 */
-  const lamps = $('lamps');
-  lamps.innerHTML = PHASES.map((p) =>
-    `<span class="lamp ${p === i.phase && !i.over ? 'on' : ''}"><i></i>${PHASE_NAMES[p]}</span>`).join('');
+    let need = null;
+    if (i.exam && k === 'int') need = i.exam.int;
+    if (i.exam && k === 'str') need = i.exam.str;
+    const short = need !== null && v < need;
+
+    let tick = '';
+    if (need !== null) {
+      const tp = Math.min(100, (need / Math.max(cap, 1)) * 100);
+      tick = `<span class="tick ${short ? '' : 'met'}" style="left:${tp}%" `
+        + `title="本學期期末門檻 ${need}"></span>`;
+    }
+
+    rows.insertAdjacentHTML('beforeend',
+      `<div class="ab ${short ? 'short' : ''}">`
+      + `<span class="nm">${ABL[k]}</span>`
+      + `<span class="track"><span class="fill" style="width:${w}%"></span>${tick}</span>`
+      + `<span class="val">${v}<s>/${cap}</s></span></div>`);
+  }
 }
 
 /* ================= 紀錄卡片 ================= */
@@ -3306,10 +3451,15 @@ function makeCard(e) {
   card.className = `card ${e.kind || ''}`;
   let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
   html += effectLine(e.applied);
+  /* 對象清單改成左右對齊的表格列:左邊姓名、右邊成功率與結果,
+   * 比一整行文字好掃視 */
   if (e.detail && e.detail.length) {
-    html += `<div class="det">${e.detail.map((d) =>
-      d.includes('→ 成功')
-        ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
+    html += `<div class="det">${e.detail.map((d) => {
+      const ok = d.ok;
+      return `<span class="row ${ok ? 'ok' : ''}">`
+        + `<b>${d.name}</b>`
+        + `<span>${d.rate}%　${ok ? '成立' : '未成立'}</span></span>`;
+    }).join('')}</div>`;
   }
   card.innerHTML = html;
   return card;
@@ -3414,6 +3564,7 @@ function renderAction() {
 function renderConfirm(title, label) {
   const act = $('act');
   act.innerHTML = actTitle(title);
+  void 0;
   const b = document.createElement('button');
   b.className = 'btn main';
   b.textContent = label;
@@ -3457,7 +3608,11 @@ function renderDice(p) {
 
   function draw() {
     act.innerHTML = actTitle(
-      `分配訓練成果（${assignments.length}/${dice.length} 顆已分配）　點骰子選擇，再點下方去處`);
+      `本 學 期 配 額　<b>${assignments.length} / ${dice.length}</b>`);
+    const hint = document.createElement('div');
+    hint.className = 'desc';
+    hint.textContent = '先點一顆骰子，再選它要投到哪裡。';
+    act.appendChild(hint);
 
     const row = document.createElement('div');
     row.id = 'dice';
@@ -3499,18 +3654,28 @@ function renderDice(p) {
       { to: 'sta', label: `體力 +${pip}`, note: `目前 ${info.ab.sta}／上限 ${info.pot.sta}　場次來源` },
       { to: 'int', label: `學力 +${pip}`, note: `目前 ${info.ab.int}　期末需要 ${info.exam?.int ?? '—'}` },
       { to: 'str', label: `肌力 +${pip}`, note: `目前 ${info.ab.str}　期末需要 ${info.exam?.str ?? '—'}` },
-      {
-        to: 'social',
-        label: `社交場次 +${Math.floor(pip / CONFIG.slotPerDiceDiv)}`,
-        note: `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
-      },
+      (() => {
+        const gain = Math.floor(pip / CONFIG.slotPerDiceDiv);
+        return {
+          to: 'social',
+          label: `社交場次 +${gain}`,
+          note: gain === 0
+            ? `${pip} 點換不到場次（每 ${CONFIG.slotPerDiceDiv} 點換 1 場）`
+            : `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
+          disabled: gain === 0,
+        };
+      })(),
     ];
 
     opts.forEach((o) => {
       const b = document.createElement('button');
-      b.className = `btn${o.to === 'social' ? ' gold' : ''}`;
+      b.className = `btn${o.to === 'social' ? ' stamp' : ''}`;
       b.innerHTML = `${o.label}<small>${o.note}</small>`;
+      /* 一點的骰子換不到任何場次(除以二向下取整),
+       * 這種情況要把選項鎖住,不能讓玩家點一個什麼都不會發生的按鈕 */
+      if (o.disabled) b.disabled = true;
       b.onclick = () => {
+        if (o.disabled) return;
         assignments.push({ die: active, to: o.to });
         used[active] = true;
         const next = used.findIndex((u) => !u);
@@ -3529,9 +3694,9 @@ function renderDice(p) {
 
 function renderEvent(p) {
   const act = $('act');
-  act.innerHTML = actTitle(`事件｜${p.card.n}　—　你要怎麼應對？`);
+  act.innerHTML = actTitle(`事 件 記 錄　${p.card.n}`);
   const d = document.createElement('p');
-  d.style.cssText = 'font-size:13px;color:var(--dim);margin-bottom:6px';
+  d.className = 'desc';
   d.textContent = p.card.desc;
   act.appendChild(d);
 
@@ -3554,14 +3719,14 @@ function renderActivity(p) {
   const act = $('act');
   const i = game.info();
   act.innerHTML = actTitle(
-    `社交活動　剩餘場次 <span class="hl">${p.slotsLeft}</span>　` +
-    `風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
+    `行 程 安 排　<b>剩餘 ${p.slotsLeft} 場</b>`
+    + `　　風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
 
   if (p.mentor?.available) {
     const b = document.createElement('button');
-    b.className = 'btn gold';
-    b.innerHTML = `🍺 ${p.mentor.session.n}<small>` +
-      `技巧力 +${p.mentor.sklGain}　消耗 ${p.mentor.cost} 場次　（機會有限）</small>`;
+    b.className = 'btn stamp';
+    b.innerHTML = `${p.mentor.session.n}<small>` +
+      `技巧力 +${p.mentor.sklGain}｜消耗 ${p.mentor.cost} 場｜機會有限</small>`;
     b.onclick = () => submitWithModal({ mentor: true }, '老學長帶你出門');
     act.appendChild(b);
   }
@@ -3570,15 +3735,15 @@ function renderActivity(p) {
   if (p.cure?.available) {
     const b = document.createElement('button');
     b.className = 'btn warn';
-    b.innerHTML = `🏥 就醫治療 ${p.cure.name}<small>` +
-      `治癒率 ${p.cure.rate}%　消耗 ${p.cure.cost} 場次　不治療每學期都會扣能力</small>`;
+    b.innerHTML = `就醫治療 ${p.cure.name}<small>` +
+      `治癒率 ${p.cure.rate}%｜消耗 ${p.cure.cost} 場｜不治療每學期扣能力</small>`;
     b.onclick = () => submitWithModal({ cure: true }, '就醫結果');
     act.appendChild(b);
   } else if (p.cure?.incurable) {
     const note = document.createElement('div');
     note.style.cssText =
-      'font-size:12px;color:var(--bad);background:#2a1414;border:1px solid #6a3c3c;' +
-      'border-radius:8px;padding:6px 10px;margin-top:6px';
+      'font-family:var(--num);font-size:11.5px;color:var(--fail);background:var(--stamp-soft);'
+      + 'border:1px solid var(--fail);border-radius:2px;padding:6px 9px;margin-top:7px';
     note.textContent = `${p.cure.name}：無法治癒，每學期都會持續扣能力與風評。`;
     act.appendChild(note);
   }
@@ -3647,29 +3812,25 @@ function renderSpecial(p) {
   const diffN = { low: '低', mid: '中', high: '高' }[g.diff] || g.diff;
 
   act.innerHTML = actTitle(
-    `這一位不太一樣　${p.remaining > 0 ? `（今晚還有 ${p.remaining} 位）` : ''}`);
+    `個 案 附 件${p.remaining > 0 ? `　<b>本場尚有 ${p.remaining} 件</b>` : ''}`);
 
   const box = document.createElement('div');
-  box.style.cssText =
-    'background:#0d2115;border:1px solid var(--edge);border-radius:8px;' +
-    'padding:10px 12px;margin-bottom:4px';
+  box.id = 'dossier';
   box.innerHTML =
-    `<div style="font-weight:900;font-size:16px">${g.name}` +
-    `<span style="color:var(--amber);font-size:13px;font-weight:700;margin-left:8px">${g.title}</span></div>` +
-    `<div style="font-size:13px;color:var(--dim);margin-top:5px;line-height:1.7">${g.desc}</div>` +
-    `<div style="font-family:var(--mono);font-size:12px;color:var(--chalk);margin-top:7px">` +
-    `難度 ${diffN}　成功率 ${p.rate}%</div>`;
+    `<div class="dn">${g.name}<span class="dt">${g.title}</span></div>`
+    + `<div class="dd">${g.desc}</div>`
+    + `<div class="dm"><span>難度 ${diffN}</span><span>成功率 ${p.rate}%</span></div>`;
   act.appendChild(box);
 
   const go = document.createElement('button');
-  go.className = 'btn main';
-  go.innerHTML = `出手<small>成功率 ${p.rate}%　結果好壞看她是誰</small>`;
+  go.className = 'btn stamp';
+  go.innerHTML = `出手<small>成功率 ${p.rate}%｜後果視對象而定</small>`;
   go.onclick = () => submitWithModal({ go: true }, `${g.name}・${g.title}`);
   act.appendChild(go);
 
   const no = document.createElement('button');
   no.className = 'btn';
-  no.innerHTML = '收手<small>不算人斬，但也不會有後果。她今晚之後不會再出現</small>';
+  no.innerHTML = '收手<small>不計入人斬，也不會有後果。她之後不再出現</small>';
   no.onclick = () => submitWithModal({ go: false }, `${g.name}・${g.title}`);
   act.appendChild(no);
 }
@@ -3690,13 +3851,11 @@ function buildEndingCard(e) {
    * 所以人數多的時候只列出名冊上的角色,路人合併成一行。
    * 但人數少的時候(門檻見 config.namelistFullBelow)還是全部列出來——
    * 只斬到幾個人的玩家,每一個都值得留名字。 */
-  const TIER_COLOR = {
-    positive: 'var(--good)', negative: 'var(--bad)', fatal: 'var(--bad)',
-  };
+  const TIER_CLASS = { positive: 'g', negative: 'b', fatal: 'b' };
   const label = (c) => {
-    const t = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
-    const col = TIER_COLOR[c.tier];
-    return col ? `<span style="color:${col};font-weight:700">${t}</span>` : t;
+    const t = c.title ? `${c.name}<span class="x">（${c.title}）</span>` : c.name;
+    const cls = TIER_CLASS[c.tier];
+    return cls ? `<span class="${cls}">${t}</span>` : t;
   };
 
   const nl = composeNamelist(e.conquered);
@@ -3707,22 +3866,22 @@ function buildEndingCard(e) {
     const parts = [];
     if (nl.named.length > 0) parts.push(nl.named.map(label).join('、'));
     if (nl.strangers > 0) {
-      parts.push(`<span style="color:var(--dim)">以及 ${nl.strangers} 位記不住名字的</span>`);
+      parts.push(`<span class="x">以及 ${nl.strangers} 位記不住名字的</span>`);
     }
     names = parts.join('，<br>');
   }
 
   const stdRow = e.std
-    ? `<tr><td>健康狀況</td><td style="color:var(--bad)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
+    ? `<tr><td>健康狀況</td><td style="color:var(--fail)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
     : `<tr><td>健康狀況</td><td>${e.stdCured > 0 ? `曾感染，已治癒 ${e.stdCured} 次` : '沒有問題'}</td></tr>`;
 
   const fatalRow = e.fatalGirl
-    ? `<tr><td>登出原因</td><td style="color:var(--bad)">${e.fatalGirl}</td></tr>` : '';
+    ? `<tr><td>登出原因</td><td style="color:var(--fail)">${e.fatalGirl}</td></tr>` : '';
 
   card.innerHTML = `
     <div class="end-hero">
       <div class="tier">${e.headline}</div>
-      <div class="kills">${e.kills}<small>生涯人斬</small></div>
+      <div class="num"><b>${e.kills}</b><span>生 涯 人 斬</span></div>
     </div>
     <p>${e.gradLine}</p>
     <table class="fin">
@@ -3740,7 +3899,7 @@ function buildEndingCard(e) {
       ${stdRow}
       ${fatalRow}
     </table>
-    <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
+    <div class="namelist"><span class="h">名 單</span>${names}</div>
   `;
   return card;
 }
@@ -3754,7 +3913,7 @@ function renderEnding(e) {
     .appendChild(buildEndingCard(e));
 
   /* 底部操作區:關掉視窗之後還是要能重玩 */
-  act.innerHTML = actTitle(`世界種子　${game.seed}`);
+  act.innerHTML = actTitle(`檔 案 編 號　<b>${game.seed}</b>`);
   act.appendChild(replayButton('main'));
   act.appendChild(sameSeedButton());
 
@@ -3768,7 +3927,7 @@ function showEndingModal(e) {
   const box = $('modal-body');
   box.innerHTML = '';
   box.appendChild(buildEndingCard(e));
-  $('modal-head').textContent = '生涯總結';
+  $('modal-head').textContent = '結 案 報 告';
 
   const foot = $('modal-foot');
   foot.innerHTML = '';
@@ -3776,7 +3935,7 @@ function showEndingModal(e) {
   const close = document.createElement('button');
   close.className = 'btn';
   close.style.marginTop = '8px';
-  close.textContent = '關閉，回頭看紀錄';
+  close.textContent = '關閉，回頭翻紀錄';
   close.onclick = closeModal;
   foot.appendChild(close);
 
@@ -3788,7 +3947,7 @@ function showEndingModal(e) {
 function replayButton(cls) {
   const b = document.createElement('button');
   b.className = `btn ${cls || ''}`;
-  b.textContent = '↺ 再玩一次（換一個種子）';
+  b.textContent = '重新建檔（換一個編號）';
   b.onclick = () => { location.href = location.pathname; };
   return b;
 }
@@ -3796,7 +3955,7 @@ function replayButton(cls) {
 function sameSeedButton() {
   const b = document.createElement('button');
   b.className = 'btn';
-  b.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
+  b.innerHTML = `用同一個編號重來<small>${game.seed}</small>`;
   b.onclick = () => {
     location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`;
   };
@@ -3815,6 +3974,68 @@ buildStart();
 
 /* 給瀏覽器主機測試用:暴露最小介面 */
 window.__game = () => game;
+
+/* ================= 本機開發用的自動推進 =================
+ * 用途:視覺檢查。截圖工具會在呼叫時重新載入頁面,所以「先用程式驅動、再截圖」
+ * 這條路不可靠;改成讓頁面在載入時就自己走到指定畫面,導航完直接截圖。
+ *
+ * 只在 localhost 生效,線上永遠不會觸發。
+ * 用法:?auto=activity|special|exam|end&dept=LAW&seed=xxx
+ */
+(function devAutoPlay() {
+  const local = ['127.0.0.1', 'localhost', ''].includes(location.hostname);
+  const q = new URLSearchParams(location.search);
+  const target = q.get('auto');
+  if (!local || !target) return;
+
+  const dept = q.get('dept') || 'ENG';
+  $('in-name').value = q.get('name') || '朱董';
+  const btn = [...$('seg-dept').children].find((b) => b.dataset.v === dept);
+  if (btn) btn.click();
+  $('btn-start').click();
+
+  const modal = () => $('modal').classList.contains('on');
+  const btns = () => [...$('act').querySelectorAll('button:not(:disabled)')];
+  const pick = (kw) => btns().find((b) => b.textContent.includes(kw));
+
+  let steps = 0;
+  while (steps++ < 4000) {
+    const p = game.pending;
+    if (p.type === 'gameover') break;
+    if (target === 'activity' && p.type === 'activity') break;
+    if (target === 'special' && p.type === 'special') break;
+    if (target === 'exam' && p.type === 'exam') break;
+
+    if (modal()) {
+      const ok = $('modal-ok');
+      if (ok) { ok.click(); continue; }
+      break;
+    }
+
+    if (p.type === 'dice') {
+      for (let d = 0; d < p.dice.length; d++) {
+        const opts = [...$('act').querySelectorAll('.alloc button:not(:disabled)')];
+        const info = game.info();
+        const th = info.exam;
+        let want = '社交場次';
+        if (info.ab.str < th.str + 5) want = '肌力';
+        else if (info.ab.int < th.int + 5) want = '學力';
+        (opts.find((b) => b.textContent.includes(want)) || opts[0]).click();
+      }
+      pick('確定分配')?.click();
+    } else if (p.type === 'event') {
+      (pick('保守應對') || btns()[0]).click();
+    } else if (p.type === 'special') {
+      (pick('出手') || btns()[0]).click();
+    } else if (p.type === 'activity') {
+      const t = btns().filter((b) => b.textContent.includes('人')).pop() || pick('帶浪');
+      (t || pick('不再出門')).click();
+    } else {
+      btns()[0]?.click();
+    }
+  }
+  window.scrollTo(0, 0);
+}());
 })();
 </script>
 </body>

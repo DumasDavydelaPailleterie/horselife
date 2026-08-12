@@ -8,7 +8,7 @@ import { DEPTS, DEPT_KEYS } from '../data/depts.js';
 import { randomSeed } from '../rng.js';
 import { composeNamelist } from '../core/namelist.js';
 
-const APP_VER = 'v0.1.0';
+const APP_VER = 'v0.2.0';
 const $ = (id) => document.getElementById(id);
 
 let game = null;
@@ -72,15 +72,19 @@ function showDeptNote() {
   const d = DEPTS[chosenDept];
   const s = d.start;
   $('dept-note').innerHTML =
-    `<b style="color:var(--chalk)">${d.note}</b><br>` +
-    `起始 體力 ${s.sta}・學力 ${s.int}・肌力 ${s.str}・技巧力 ${s.skl}　｜　` +
-    `畢業門檻 學力 ${d.examInt[7]}・肌力 ${d.examStr[7]}`;
+    `<div class="n1">${d.note}</div>`
+    + `<div class="n2">入學能力　體力 ${s.sta}　學力 ${s.int}　肌力 ${s.str}　技巧力 ${s.skl}<br>`
+    + `畢業門檻　學力 ${d.examInt[7]}　肌力 ${d.examStr[7]}</div>`;
 }
 
 function start() {
   const name = ($('in-name').value || '').trim() || '朱董';
   seed = ($('seed-show').value || '').trim() || randomSeed();
-  history.replaceState(null, '', `?seed=${encodeURIComponent(seed)}`);
+  /* 只覆寫 seed,其他參數原樣保留。
+   * 先前是直接寫成 '?seed=xxx',會把網址上其他參數全部吃掉。 */
+  const q = new URLSearchParams(location.search);
+  q.set('seed', seed);
+  history.replaceState(null, '', `?${q.toString()}`);
 
   game = createGame({ name, dept: chosenDept, seed });
   $('start').style.display = 'none';
@@ -90,7 +94,7 @@ function start() {
   $('act-toggle').onclick = () => {
     const a = $('act');
     a.classList.toggle('collapsed');
-    $('act-toggle').textContent = a.classList.contains('collapsed') ? '⌃ 展開選項' : '⌄ 收合選項';
+    $('act-toggle').textContent = a.classList.contains('collapsed') ? '展 開' : '收 合';
   };
   lastRenderedLog = 0;
   refresh();
@@ -100,40 +104,63 @@ function start() {
 
 function board() {
   const i = game.info();
-  const stdBadge = i.std
-    ? `<small style="color:var(--bad);font-weight:700">${i.stdName}</small>`
-    : (i.immune ? '<small style="color:var(--good);font-weight:700">免疫</small>' : '');
-  $('bd-name').innerHTML = `${i.name}<small>${i.dept}</small>${stdBadge}`;
-  $('bd-term').textContent = i.over ? '生涯結束' : `${i.semesterName}・${PHASE_NAMES[i.phase]}`;
-  $('bd-age').textContent = i.age;
-  $('bd-year').textContent = i.year;
-  $('bd-ovr').textContent = i.ovr;
+
+  $('bd-name').textContent = i.name;
+  $('bd-meta').textContent =
+    `${i.dept}　${i.year} 年　${i.age} 歲　綜合 ${i.ovr}`;
+
+  /* 狀態標記:健康狀況與風評,用文件上的註記樣式呈現 */
+  const flags = [];
+  if (i.std) flags.push(`<span class="flag bad">確診 ${i.stdName}</span>`);
+  else if (i.immune) flags.push('<span class="flag good">已具免疫</span>');
+  if (i.rep >= 24) flags.push('<span class="flag bad">風評不佳</span>');
+  else if (i.rep >= 10) flags.push('<span class="flag note">已有風聲</span>');
+  if (i.mentorFound) flags.push('<span class="flag note">已受指導</span>');
+  $('bd-flags').innerHTML = flags.join('');
+
   $('bd-kills').textContent = i.kills;
 
-  /* 能力條:紅色刻度標示本學期期末考門檻 */
+  /* 八個學期的進度格:過去實心、當前紅框、未來留白 */
+  const strip = $('semstrip');
+  strip.innerHTML = SEMESTER_NAMES.map((n, idx) => {
+    const num = idx + 1;
+    let cls = '';
+    if (i.over && !i.graduated && num === i.semester) cls = 'fail';
+    else if (num < i.semester) cls = 'done';
+    else if (num === i.semester && !i.over) cls = 'now';
+    return `<span class="sem ${cls}">${n.replace('大', '')}</span>`;
+  }).join('');
+
+  /* 五個階段:當前那個標紅並加底線,比燈號好讀 */
+  $('phaseline').innerHTML = PHASES.map((p) =>
+    `<span class="ph ${p === i.phase && !i.over ? 'on' : ''}">${PHASE_NAMES[p]}</span>`).join('');
+
+  /* 能力細線條。紅色三角刻度標示本學期期末門檻,達標轉綠 */
   const rows = $('abrows');
   rows.innerHTML = '';
   for (const k of ['sta', 'int', 'str', 'skl']) {
-    const v = i.ab[k], cap = i.pot[k];
-    const pctW = Math.min(100, (v / Math.max(cap, 1)) * 100);
-    let mark = '';
-    if (i.exam && (k === 'int' || k === 'str')) {
-      const need = k === 'int' ? i.exam.int : i.exam.str;
-      const mp = Math.min(100, (need / Math.max(cap, 1)) * 100);
-      const short = v < need;
-      mark = `<em style="left:${mp}%;${short ? '' : 'background:#8fd08faa'}" title="期末門檻 ${need}"></em>`;
-    }
-    const short = i.exam && ((k === 'int' && v < i.exam.int) || (k === 'str' && v < i.exam.str));
-    rows.insertAdjacentHTML('beforeend',
-      `<div class="ab"><span class="nm">${ABL[k]}</span>` +
-      `<span class="bar"><i style="width:${pctW}%"></i>${mark}</span>` +
-      `<span class="val" ${short ? 'style="color:var(--bad)"' : ''}>${v}<s>/${cap}</s></span></div>`);
-  }
+    const v = i.ab[k];
+    const cap = i.pot[k];
+    const w = Math.min(100, (v / Math.max(cap, 1)) * 100);
 
-  /* 階段燈 */
-  const lamps = $('lamps');
-  lamps.innerHTML = PHASES.map((p) =>
-    `<span class="lamp ${p === i.phase && !i.over ? 'on' : ''}"><i></i>${PHASE_NAMES[p]}</span>`).join('');
+    let need = null;
+    if (i.exam && k === 'int') need = i.exam.int;
+    if (i.exam && k === 'str') need = i.exam.str;
+    const short = need !== null && v < need;
+
+    let tick = '';
+    if (need !== null) {
+      const tp = Math.min(100, (need / Math.max(cap, 1)) * 100);
+      tick = `<span class="tick ${short ? '' : 'met'}" style="left:${tp}%" `
+        + `title="本學期期末門檻 ${need}"></span>`;
+    }
+
+    rows.insertAdjacentHTML('beforeend',
+      `<div class="ab ${short ? 'short' : ''}">`
+      + `<span class="nm">${ABL[k]}</span>`
+      + `<span class="track"><span class="fill" style="width:${w}%"></span>${tick}</span>`
+      + `<span class="val">${v}<s>/${cap}</s></span></div>`);
+  }
 }
 
 /* ================= 紀錄卡片 ================= */
@@ -186,10 +213,15 @@ function makeCard(e) {
   card.className = `card ${e.kind || ''}`;
   let html = `<h4>${e.title}</h4><p>${e.text}</p>`;
   html += effectLine(e.applied);
+  /* 對象清單改成左右對齊的表格列:左邊姓名、右邊成功率與結果,
+   * 比一整行文字好掃視 */
   if (e.detail && e.detail.length) {
-    html += `<div class="det">${e.detail.map((d) =>
-      d.includes('→ 成功')
-        ? `<span class="ok">${d}</span>` : d).join('<br>')}</div>`;
+    html += `<div class="det">${e.detail.map((d) => {
+      const ok = d.ok;
+      return `<span class="row ${ok ? 'ok' : ''}">`
+        + `<b>${d.name}</b>`
+        + `<span>${d.rate}%　${ok ? '成立' : '未成立'}</span></span>`;
+    }).join('')}</div>`;
   }
   card.innerHTML = html;
   return card;
@@ -294,6 +326,7 @@ function renderAction() {
 function renderConfirm(title, label) {
   const act = $('act');
   act.innerHTML = actTitle(title);
+  void 0;
   const b = document.createElement('button');
   b.className = 'btn main';
   b.textContent = label;
@@ -337,7 +370,11 @@ function renderDice(p) {
 
   function draw() {
     act.innerHTML = actTitle(
-      `分配訓練成果（${assignments.length}/${dice.length} 顆已分配）　點骰子選擇，再點下方去處`);
+      `本 學 期 配 額　<b>${assignments.length} / ${dice.length}</b>`);
+    const hint = document.createElement('div');
+    hint.className = 'desc';
+    hint.textContent = '先點一顆骰子，再選它要投到哪裡。';
+    act.appendChild(hint);
 
     const row = document.createElement('div');
     row.id = 'dice';
@@ -379,18 +416,28 @@ function renderDice(p) {
       { to: 'sta', label: `體力 +${pip}`, note: `目前 ${info.ab.sta}／上限 ${info.pot.sta}　場次來源` },
       { to: 'int', label: `學力 +${pip}`, note: `目前 ${info.ab.int}　期末需要 ${info.exam?.int ?? '—'}` },
       { to: 'str', label: `肌力 +${pip}`, note: `目前 ${info.ab.str}　期末需要 ${info.exam?.str ?? '—'}` },
-      {
-        to: 'social',
-        label: `社交場次 +${Math.floor(pip / CONFIG.slotPerDiceDiv)}`,
-        note: `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
-      },
+      (() => {
+        const gain = Math.floor(pip / CONFIG.slotPerDiceDiv);
+        return {
+          to: 'social',
+          label: `社交場次 +${gain}`,
+          note: gain === 0
+            ? `${pip} 點換不到場次（每 ${CONFIG.slotPerDiceDiv} 點換 1 場）`
+            : `每 ${CONFIG.slotPerDiceDiv} 點換 1 場`,
+          disabled: gain === 0,
+        };
+      })(),
     ];
 
     opts.forEach((o) => {
       const b = document.createElement('button');
-      b.className = `btn${o.to === 'social' ? ' gold' : ''}`;
+      b.className = `btn${o.to === 'social' ? ' stamp' : ''}`;
       b.innerHTML = `${o.label}<small>${o.note}</small>`;
+      /* 一點的骰子換不到任何場次(除以二向下取整),
+       * 這種情況要把選項鎖住,不能讓玩家點一個什麼都不會發生的按鈕 */
+      if (o.disabled) b.disabled = true;
       b.onclick = () => {
+        if (o.disabled) return;
         assignments.push({ die: active, to: o.to });
         used[active] = true;
         const next = used.findIndex((u) => !u);
@@ -409,9 +456,9 @@ function renderDice(p) {
 
 function renderEvent(p) {
   const act = $('act');
-  act.innerHTML = actTitle(`事件｜${p.card.n}　—　你要怎麼應對？`);
+  act.innerHTML = actTitle(`事 件 記 錄　${p.card.n}`);
   const d = document.createElement('p');
-  d.style.cssText = 'font-size:13px;color:var(--dim);margin-bottom:6px';
+  d.className = 'desc';
   d.textContent = p.card.desc;
   act.appendChild(d);
 
@@ -434,14 +481,14 @@ function renderActivity(p) {
   const act = $('act');
   const i = game.info();
   act.innerHTML = actTitle(
-    `社交活動　剩餘場次 <span class="hl">${p.slotsLeft}</span>　` +
-    `風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
+    `行 程 安 排　<b>剩餘 ${p.slotsLeft} 場</b>`
+    + `　　風評 ${i.rep}　意外風險 ${i.accidentChance}%`);
 
   if (p.mentor?.available) {
     const b = document.createElement('button');
-    b.className = 'btn gold';
-    b.innerHTML = `🍺 ${p.mentor.session.n}<small>` +
-      `技巧力 +${p.mentor.sklGain}　消耗 ${p.mentor.cost} 場次　（機會有限）</small>`;
+    b.className = 'btn stamp';
+    b.innerHTML = `${p.mentor.session.n}<small>` +
+      `技巧力 +${p.mentor.sklGain}｜消耗 ${p.mentor.cost} 場｜機會有限</small>`;
     b.onclick = () => submitWithModal({ mentor: true }, '老學長帶你出門');
     act.appendChild(b);
   }
@@ -450,15 +497,15 @@ function renderActivity(p) {
   if (p.cure?.available) {
     const b = document.createElement('button');
     b.className = 'btn warn';
-    b.innerHTML = `🏥 就醫治療 ${p.cure.name}<small>` +
-      `治癒率 ${p.cure.rate}%　消耗 ${p.cure.cost} 場次　不治療每學期都會扣能力</small>`;
+    b.innerHTML = `就醫治療 ${p.cure.name}<small>` +
+      `治癒率 ${p.cure.rate}%｜消耗 ${p.cure.cost} 場｜不治療每學期扣能力</small>`;
     b.onclick = () => submitWithModal({ cure: true }, '就醫結果');
     act.appendChild(b);
   } else if (p.cure?.incurable) {
     const note = document.createElement('div');
     note.style.cssText =
-      'font-size:12px;color:var(--bad);background:#2a1414;border:1px solid #6a3c3c;' +
-      'border-radius:8px;padding:6px 10px;margin-top:6px';
+      'font-family:var(--num);font-size:11.5px;color:var(--fail);background:var(--stamp-soft);'
+      + 'border:1px solid var(--fail);border-radius:2px;padding:6px 9px;margin-top:7px';
     note.textContent = `${p.cure.name}：無法治癒，每學期都會持續扣能力與風評。`;
     act.appendChild(note);
   }
@@ -527,29 +574,25 @@ function renderSpecial(p) {
   const diffN = { low: '低', mid: '中', high: '高' }[g.diff] || g.diff;
 
   act.innerHTML = actTitle(
-    `這一位不太一樣　${p.remaining > 0 ? `（今晚還有 ${p.remaining} 位）` : ''}`);
+    `個 案 附 件${p.remaining > 0 ? `　<b>本場尚有 ${p.remaining} 件</b>` : ''}`);
 
   const box = document.createElement('div');
-  box.style.cssText =
-    'background:#0d2115;border:1px solid var(--edge);border-radius:8px;' +
-    'padding:10px 12px;margin-bottom:4px';
+  box.id = 'dossier';
   box.innerHTML =
-    `<div style="font-weight:900;font-size:16px">${g.name}` +
-    `<span style="color:var(--amber);font-size:13px;font-weight:700;margin-left:8px">${g.title}</span></div>` +
-    `<div style="font-size:13px;color:var(--dim);margin-top:5px;line-height:1.7">${g.desc}</div>` +
-    `<div style="font-family:var(--mono);font-size:12px;color:var(--chalk);margin-top:7px">` +
-    `難度 ${diffN}　成功率 ${p.rate}%</div>`;
+    `<div class="dn">${g.name}<span class="dt">${g.title}</span></div>`
+    + `<div class="dd">${g.desc}</div>`
+    + `<div class="dm"><span>難度 ${diffN}</span><span>成功率 ${p.rate}%</span></div>`;
   act.appendChild(box);
 
   const go = document.createElement('button');
-  go.className = 'btn main';
-  go.innerHTML = `出手<small>成功率 ${p.rate}%　結果好壞看她是誰</small>`;
+  go.className = 'btn stamp';
+  go.innerHTML = `出手<small>成功率 ${p.rate}%｜後果視對象而定</small>`;
   go.onclick = () => submitWithModal({ go: true }, `${g.name}・${g.title}`);
   act.appendChild(go);
 
   const no = document.createElement('button');
   no.className = 'btn';
-  no.innerHTML = '收手<small>不算人斬，但也不會有後果。她今晚之後不會再出現</small>';
+  no.innerHTML = '收手<small>不計入人斬，也不會有後果。她之後不再出現</small>';
   no.onclick = () => submitWithModal({ go: false }, `${g.name}・${g.title}`);
   act.appendChild(no);
 }
@@ -570,13 +613,11 @@ function buildEndingCard(e) {
    * 所以人數多的時候只列出名冊上的角色,路人合併成一行。
    * 但人數少的時候(門檻見 config.namelistFullBelow)還是全部列出來——
    * 只斬到幾個人的玩家,每一個都值得留名字。 */
-  const TIER_COLOR = {
-    positive: 'var(--good)', negative: 'var(--bad)', fatal: 'var(--bad)',
-  };
+  const TIER_CLASS = { positive: 'g', negative: 'b', fatal: 'b' };
   const label = (c) => {
-    const t = c.title ? `${c.name}<span style="opacity:.6">（${c.title}）</span>` : c.name;
-    const col = TIER_COLOR[c.tier];
-    return col ? `<span style="color:${col};font-weight:700">${t}</span>` : t;
+    const t = c.title ? `${c.name}<span class="x">（${c.title}）</span>` : c.name;
+    const cls = TIER_CLASS[c.tier];
+    return cls ? `<span class="${cls}">${t}</span>` : t;
   };
 
   const nl = composeNamelist(e.conquered);
@@ -587,22 +628,22 @@ function buildEndingCard(e) {
     const parts = [];
     if (nl.named.length > 0) parts.push(nl.named.map(label).join('、'));
     if (nl.strangers > 0) {
-      parts.push(`<span style="color:var(--dim)">以及 ${nl.strangers} 位記不住名字的</span>`);
+      parts.push(`<span class="x">以及 ${nl.strangers} 位記不住名字的</span>`);
     }
     names = parts.join('，<br>');
   }
 
   const stdRow = e.std
-    ? `<tr><td>健康狀況</td><td style="color:var(--bad)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
+    ? `<tr><td>健康狀況</td><td style="color:var(--fail)">${e.stdName}（帶病 ${e.stdSemesters} 學期）</td></tr>`
     : `<tr><td>健康狀況</td><td>${e.stdCured > 0 ? `曾感染，已治癒 ${e.stdCured} 次` : '沒有問題'}</td></tr>`;
 
   const fatalRow = e.fatalGirl
-    ? `<tr><td>登出原因</td><td style="color:var(--bad)">${e.fatalGirl}</td></tr>` : '';
+    ? `<tr><td>登出原因</td><td style="color:var(--fail)">${e.fatalGirl}</td></tr>` : '';
 
   card.innerHTML = `
     <div class="end-hero">
       <div class="tier">${e.headline}</div>
-      <div class="kills">${e.kills}<small>生涯人斬</small></div>
+      <div class="num"><b>${e.kills}</b><span>生 涯 人 斬</span></div>
     </div>
     <p>${e.gradLine}</p>
     <table class="fin">
@@ -620,7 +661,7 @@ function buildEndingCard(e) {
       ${stdRow}
       ${fatalRow}
     </table>
-    <div class="namelist"><b style="color:var(--chalk)">歷任名單</b><br>${names}</div>
+    <div class="namelist"><span class="h">名 單</span>${names}</div>
   `;
   return card;
 }
@@ -634,7 +675,7 @@ function renderEnding(e) {
     .appendChild(buildEndingCard(e));
 
   /* 底部操作區:關掉視窗之後還是要能重玩 */
-  act.innerHTML = actTitle(`世界種子　${game.seed}`);
+  act.innerHTML = actTitle(`檔 案 編 號　<b>${game.seed}</b>`);
   act.appendChild(replayButton('main'));
   act.appendChild(sameSeedButton());
 
@@ -648,7 +689,7 @@ function showEndingModal(e) {
   const box = $('modal-body');
   box.innerHTML = '';
   box.appendChild(buildEndingCard(e));
-  $('modal-head').textContent = '生涯總結';
+  $('modal-head').textContent = '結 案 報 告';
 
   const foot = $('modal-foot');
   foot.innerHTML = '';
@@ -656,7 +697,7 @@ function showEndingModal(e) {
   const close = document.createElement('button');
   close.className = 'btn';
   close.style.marginTop = '8px';
-  close.textContent = '關閉，回頭看紀錄';
+  close.textContent = '關閉，回頭翻紀錄';
   close.onclick = closeModal;
   foot.appendChild(close);
 
@@ -668,7 +709,7 @@ function showEndingModal(e) {
 function replayButton(cls) {
   const b = document.createElement('button');
   b.className = `btn ${cls || ''}`;
-  b.textContent = '↺ 再玩一次（換一個種子）';
+  b.textContent = '重新建檔（換一個編號）';
   b.onclick = () => { location.href = location.pathname; };
   return b;
 }
@@ -676,7 +717,7 @@ function replayButton(cls) {
 function sameSeedButton() {
   const b = document.createElement('button');
   b.className = 'btn';
-  b.innerHTML = `用同一顆種子重來<small>${game.seed}</small>`;
+  b.innerHTML = `用同一個編號重來<small>${game.seed}</small>`;
   b.onclick = () => {
     location.href = `${location.pathname}?seed=${encodeURIComponent(game.seed)}`;
   };
@@ -695,3 +736,65 @@ buildStart();
 
 /* 給瀏覽器主機測試用:暴露最小介面 */
 window.__game = () => game;
+
+/* ================= 本機開發用的自動推進 =================
+ * 用途:視覺檢查。截圖工具會在呼叫時重新載入頁面,所以「先用程式驅動、再截圖」
+ * 這條路不可靠;改成讓頁面在載入時就自己走到指定畫面,導航完直接截圖。
+ *
+ * 只在 localhost 生效,線上永遠不會觸發。
+ * 用法:?auto=activity|special|exam|end&dept=LAW&seed=xxx
+ */
+(function devAutoPlay() {
+  const local = ['127.0.0.1', 'localhost', ''].includes(location.hostname);
+  const q = new URLSearchParams(location.search);
+  const target = q.get('auto');
+  if (!local || !target) return;
+
+  const dept = q.get('dept') || 'ENG';
+  $('in-name').value = q.get('name') || '朱董';
+  const btn = [...$('seg-dept').children].find((b) => b.dataset.v === dept);
+  if (btn) btn.click();
+  $('btn-start').click();
+
+  const modal = () => $('modal').classList.contains('on');
+  const btns = () => [...$('act').querySelectorAll('button:not(:disabled)')];
+  const pick = (kw) => btns().find((b) => b.textContent.includes(kw));
+
+  let steps = 0;
+  while (steps++ < 4000) {
+    const p = game.pending;
+    if (p.type === 'gameover') break;
+    if (target === 'activity' && p.type === 'activity') break;
+    if (target === 'special' && p.type === 'special') break;
+    if (target === 'exam' && p.type === 'exam') break;
+
+    if (modal()) {
+      const ok = $('modal-ok');
+      if (ok) { ok.click(); continue; }
+      break;
+    }
+
+    if (p.type === 'dice') {
+      for (let d = 0; d < p.dice.length; d++) {
+        const opts = [...$('act').querySelectorAll('.alloc button:not(:disabled)')];
+        const info = game.info();
+        const th = info.exam;
+        let want = '社交場次';
+        if (info.ab.str < th.str + 5) want = '肌力';
+        else if (info.ab.int < th.int + 5) want = '學力';
+        (opts.find((b) => b.textContent.includes(want)) || opts[0]).click();
+      }
+      pick('確定分配')?.click();
+    } else if (p.type === 'event') {
+      (pick('保守應對') || btns()[0]).click();
+    } else if (p.type === 'special') {
+      (pick('出手') || btns()[0]).click();
+    } else if (p.type === 'activity') {
+      const t = btns().filter((b) => b.textContent.includes('人')).pop() || pick('帶浪');
+      (t || pick('不再出門')).click();
+    } else {
+      btns()[0]?.click();
+    }
+  }
+  window.scrollTo(0, 0);
+}());

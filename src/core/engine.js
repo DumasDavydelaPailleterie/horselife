@@ -391,13 +391,16 @@ export function createGame({ name, dept, seed }) {
         const r = runActivity(S, action.actId, rng);
         S.slots--;
 
-        /* 一般對象的批次結果 */
+        /* 一般對象的批次結果。detail 給結構化資料,由畫面決定怎麼排 */
         if (r.results.length > 0) {
-          const lines = r.results.map((x) =>
-            `${x.target.name}　成功率 ${Math.round(x.rate)}%　${x.success ? '→ 成功' : '→ 沒有下文'}`);
+          const lines = r.results.map((x) => ({
+            name: x.target.name,
+            rate: Math.round(x.rate),
+            ok: x.success,
+          }));
           push(r.gained > 0 ? 'good' : 'info',
-            `社交活動｜${r.activity.name}`,
-            `接觸了 ${r.results.length} 位對象，成功 ${r.gained} 位。`,
+            `${r.activity.name}`,
+            `接觸 ${r.results.length} 位，成立 ${r.gained} 位。`,
             { detail: lines, gained: r.gained });
         } else {
           push('info', `社交活動｜${r.activity.name}`, '這一場沒有遇到什麼普通的對象。');
@@ -492,6 +495,8 @@ export function createGame({ name, dept, seed }) {
     std: S.std, stdName: S.std ? CONFIG.std[S.std].name : null,
     stdSemesters: S.stdSemesters || 0, immune: !!S.immune,
     over: S.over,
+    /* 給頁首的學期進度格判斷「這一格是不是被退學的那一格」 */
+    graduated: S.overReason === 'graduated',
   });
 
   /* 啟動 */
