@@ -198,8 +198,8 @@ export const EVENTS = [
     bt: '你沒保持距離,而且整個系都知道了。', b: { rep: 4, risk: 20, kill: 1 },
   },
   {
-    id: 'so14', n: '校外聯誠', cat: 'social', phase: ['H2', 'VAC'],
-    desc: '隔壁學校的聯誠活動,說是要來三十個人。',
+    id: 'so14', n: '校外聯誼', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '隔壁學校的聯誼活動,說是要來三十個人。',
     gt: '對方那群人裡有好幾個對你有興趣。', g: { skl: 1, enc: 3 },
     bt: '你們系的人數湊不齊,活動取消,還被對方笑。', b: { rep: 1, slot: -1 },
   },

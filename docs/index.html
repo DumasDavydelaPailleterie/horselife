@@ -687,7 +687,7 @@ const ACTIVITIES = [
     desc: '門口的人上下看了你一眼,然後讓開。',
   },
   {
-    id: 'act_app', name: '校外聯誠/交友軟體', enc: 5,
+    id: 'act_app', name: '校外聯誼/交友軟體', enc: 5,
     req: { skl: 20 }, diff: 'high', risk: 'extreme',
     mentorDept: null,
     desc: '右滑到手指痠,通知一直在跳。',
@@ -998,8 +998,8 @@ const EVENTS = [
     bt: '你沒保持距離,而且整個系都知道了。', b: { rep: 4, risk: 20, kill: 1 },
   },
   {
-    id: 'so14', n: '校外聯誠', cat: 'social', phase: ['H2', 'VAC'],
-    desc: '隔壁學校的聯誠活動,說是要來三十個人。',
+    id: 'so14', n: '校外聯誼', cat: 'social', phase: ['H2', 'VAC'],
+    desc: '隔壁學校的聯誼活動,說是要來三十個人。',
     gt: '對方那群人裡有好幾個對你有興趣。', g: { skl: 1, enc: 3 },
     bt: '你們系的人數湊不齊,活動取消,還被對方笑。', b: { rep: 1, slot: -1 },
   },
@@ -1195,14 +1195,14 @@ const FATAL = [
     eff: { fatal: '出院那天你爸媽已經把宿舍的東西全部搬走了。休學申請是他們簽的，手機也是他們保管的。你在家裡的房間住了一整年，那一年你沒有再回過學校。' },
   },
   {
-    id: 'f02', name: '闕微茵', title: '別人的太太', tier: 'fatal', diff: 'high',
+    id: 'f02', name: '韓薇茵', title: '別人的太太', tier: 'fatal', diff: 'high',
     where: ['act_app'],
     desc: '個人檔案寫著單身，但照片背景那間房子太貴了。她說她先生長期在國外。',
     hit: '她先生沒有在國外。他在客廳等你們回來，而且他律師的電話比拳頭更快。',
     eff: { fatal: '對方提了民事，你家裡付了錢，條件是你必須離開這座城市。學校那邊辦的是自願退學，理由欄寫「個人生涯規劃」。' },
   },
   {
-    id: 'f03', name: '軒轅霈', title: '校長的姪女', tier: 'fatal', diff: 'high',
+    id: 'f03', name: '軒轅雪', title: '校長的姪女', tier: 'fatal', diff: 'high',
     where: ['act_club_night'],
     desc: '她說她姓軒轅，你當下沒想起來校長辦公室門口的名牌也是這三個字。',
     hit: '第二天早上，你的名字出現在一份只有三個人看過的簽呈上。',
@@ -1250,16 +1250,16 @@ const NEGATIVE = [
     eff: { std: 'syphilis', sta: 2 },
   },
   {
-    id: 'n05', name: '禚素心', title: '不留姓名', tier: 'negative', diff: 'high',
+    id: 'n05', name: '尹素心', title: '不留姓名', tier: 'negative', diff: 'high',
     where: ['act_app'],
     desc: '她沒有給你真名，也沒有留照片。她說這樣對大家都好。',
     hit: '她說得對，這樣對她比較好。你花了很久才拿到那張檢驗報告。',
     eff: { std: 'hiv', rep: 2 },
   },
   {
-    id: 'n06', name: '仉玉璆', title: '教官的女兒', tier: 'negative', diff: 'high',
+    id: 'n06', name: '童玉璇', title: '教官的女兒', tier: 'negative', diff: 'high',
     where: ['act_club', 'act_camp'],
-    desc: '她姓仉，全校只有一個人姓仉，而那個人的辦公室在學務處二樓。',
+    desc: '她姓童，全校只有一個人姓童，而那個人的辦公室在學務處二樓。',
     hit: '事情辦成了。事情也傳到二樓了。',
     eff: { rep: 8, risk: 25, int: 3 },
   },
@@ -1271,7 +1271,7 @@ const NEGATIVE = [
     eff: { rep: 12, enc: -3 },
   },
   {
-    id: 'n08', name: '上官妘', title: '情緒風暴', tier: 'negative', diff: 'low',
+    id: 'n08', name: '上官芸', title: '情緒風暴', tier: 'negative', diff: 'low',
     where: null,
     desc: '她第一句話就問你「你是不是也覺得我很麻煩」。',
     hit: '接下來三個月，你的手機在凌晨三點響過十七次。',
@@ -1285,7 +1285,7 @@ const NEGATIVE = [
     eff: { sta: 5, str: 4, risk: 20 },
   },
   {
-    id: 'n10', name: '斛蘭因', title: '要價不菲', tier: 'negative', diff: 'low',
+    id: 'n10', name: '韓蘭因', title: '要價不菲', tier: 'negative', diff: 'low',
     where: ['act_app', 'act_club_night'],
     desc: '她挑的餐廳你查過，一個人的價位是你半個月的生活費。',
     hit: '你成功了，也破產了。接下來兩個學期你哪裡都去不了。',
@@ -1306,21 +1306,21 @@ const NEGATIVE = [
     eff: { rep: 15, risk: 15, enc: 2 },
   },
   {
-    id: 'n13', name: '闞霜', title: '藥效未退', tier: 'negative', diff: 'low',
+    id: 'n13', name: '柯霜', title: '藥效未退', tier: 'negative', diff: 'low',
     where: ['act_club_night'],
     desc: '她的眼神對不到焦，但一直笑。她的朋友都不見了。',
     hit: '隔天你才知道她當時的狀態，也才知道這件事的嚴重程度。',
     eff: { rep: 10, risk: 30, sta: 4 },
   },
   {
-    id: 'n14', name: '緱翠翹', title: '學術不端', tier: 'negative', diff: 'mid',
+    id: 'n14', name: '顧翠雲', title: '學術不端', tier: 'negative', diff: 'mid',
     where: ['act_read'],
     desc: '她說她可以幫你弄期末報告，而且她真的有辦法。',
     hit: '報告過了，你也過了。三週後系辦寄來一封學術倫理審查通知。',
     eff: { int: 8, rep: 5, risk: 10 },
   },
   {
-    id: 'n15', name: '澹臺姒', title: '認真的那一位', tier: 'negative', diff: 'high',
+    id: 'n15', name: '澹臺媗', title: '認真的那一位', tier: 'negative', diff: 'high',
     where: ['act_club', 'act_read'],
     desc: '她問你以後想做什麼、家裡幾個人、有沒有想過結婚。她是認真在問的。',
     hit: '她把你帶回家見了父母。你花了一年才把這件事收乾淨。',
@@ -1341,7 +1341,7 @@ const NEGATIVE = [
     eff: { slot: -4, sta: 2, rep: 1 },
   },
   {
-    id: 'n18', name: '申屠荏', title: '很會分享機會', tier: 'negative', diff: 'low',
+    id: 'n18', name: '申屠妍', title: '很會分享機會', tier: 'negative', diff: 'low',
     where: ['act_club', 'act_mixer'],
     desc: '她約你喝咖啡，然後問你有沒有想過「為自己工作」。',
     hit: '你被拉進一個三百人的群組，接下來半年每個週末都有課要上。',
@@ -1383,7 +1383,7 @@ const NEGATIVE = [
     eff: { rep: 11, risk: 15 },
   },
   {
-    id: 'n24', name: '公西泠', title: '習慣留紀錄', tier: 'negative', diff: 'high',
+    id: 'n24', name: '岳泠', title: '習慣留紀錄', tier: 'negative', diff: 'high',
     where: ['act_club', 'act_read'],
     desc: '她說話很慢，而且會確認你剛剛說的每一句話。她的手機放在桌上，螢幕朝下。',
     hit: '那些對話後來出現在學務處的桌上，一句都沒有被剪掉。',
@@ -1404,7 +1404,7 @@ const NEGATIVE = [
     eff: { int: 6, rep: 6, risk: 20 },
   },
   {
-    id: 'n27', name: '北宮荼', title: '不留下任何東西', tier: 'negative', diff: 'high',
+    id: 'n27', name: '北宮荷', title: '不留下任何東西', tier: 'negative', diff: 'high',
     where: ['act_app'],
     desc: '她用的帳號是新辦的，照片只有背影，訊息看完就撤回。',
     hit: '她連再見都沒說。你是在一個月後的健康檢查才知道那晚留下了什麼。',
@@ -1418,7 +1418,7 @@ const NEGATIVE = [
     eff: { rep: 7, slot: -3, sta: 2 },
   },
   {
-    id: 'n29', name: '亢綢', title: '三杯就不行', tier: 'negative', diff: 'low',
+    id: 'n29', name: '康綺', title: '三杯就不行', tier: 'negative', diff: 'low',
     where: ['act_club_night', 'act_mixer'],
     desc: '她說她酒量很好。她已經喝了三杯。',
     hit: '後面的事你們都不太記得，但店裡的監視器記得，而且她家人調了。',
@@ -1576,7 +1576,7 @@ const POSITIVE = [
     eff: { enc: 5, slot: 3, rep: -3 },
   },
   {
-    id: 'p19', name: '閭丘婥', title: '瑜珈教室的常客', tier: 'positive', diff: 'low',
+    id: 'p19', name: '柳婥', title: '瑜珈教室的常客', tier: 'positive', diff: 'low',
     where: ['act_gym'],
     desc: '她的柔軟度讓旁邊的人都停下來看。她說這是練了八年的。',
     hit: '她教了你一些關於身體的事，那些事後來一直很有用。',
@@ -1639,7 +1639,7 @@ const POSITIVE = [
     eff: { enc: 6 },
   },
   {
-    id: 'p28', name: '第五茉', title: '課程助教', tier: 'positive', diff: 'high',
+    id: 'p28', name: '伍茉', title: '課程助教', tier: 'positive', diff: 'high',
     where: ['act_read'],
     desc: '她負責改那門課的作業，而且她真的每一份都看。',
     hit: '她願意在改之前先幫你看一遍，那個學期你的分數判若兩人。',
@@ -1716,7 +1716,7 @@ const POSITIVE = [
     eff: { skl: 5, int: 5, rep: -2 },
   },
   {
-    id: 'p39', name: '公羊澂', title: '游泳隊隊長', tier: 'positive', diff: 'mid',
+    id: 'p39', name: '公羊璇', title: '游泳隊隊長', tier: 'positive', diff: 'mid',
     where: ['act_gym'],
     desc: '她從水裡上來的時候，整個池邊都安靜了兩秒。',
     hit: '她帶你練了一整季的水感與核心，順便帶走了你原本的體態。',
@@ -1764,55 +1764,55 @@ const NORMAL_RAW = [
   ['湛嫚', '系刊編輯', 'mid'],
   ['蒯沅', '英文會話', 'low'],
   ['虞婳', '管樂社', 'mid'],
-  ['邴姒', '單車社', 'low'],
-  ['缑瑄', '設計系', 'high'],
+  ['邴珊', '單車社', 'low'],
+  ['顧瑄', '設計系', 'high'],
   ['厲嬿', '網球隊', 'mid'],
   ['翟薇', '烘焙社', 'low'],
   ['隗嫄', '天文社', 'low'],
   ['羌媞', '合作社店員', 'low'],
-  ['亓官婉', '醫學系', 'high'],
-  ['乞伏瓔', '棋藝社', 'low'],
+  ['于婉', '醫學系', 'high'],
+  ['何瓔', '棋藝社', 'low'],
   ['宗政湄', '模擬聯合國', 'high'],
   ['第五嫻', '法律系', 'mid'],
   ['呼延纖', '空手道社', 'mid'],
-  ['壤駟瑤', '國際生', 'high'],
+  ['尚瑤', '國際生', 'high'],
   ['子車菀', '大提琴', 'high'],
-  ['夾谷芊', '劍道社', 'mid'],
-  ['宰父玥', '系隊經理', 'mid'],
+  ['賈芊', '劍道社', 'mid'],
+  ['齊玥', '系隊經理', 'mid'],
   ['谷梁茜', '辯論社', 'high'],
   ['濮陽婥', '電研社', 'low'],
   ['淳于嬅', '舞蹈系', 'high'],
-  ['單于沅', '外文系', 'mid'],
-  ['赫舍嫚', '交換生', 'high'],
+  ['于沅', '外文系', 'mid'],
+  ['何嫚', '交換生', 'high'],
   ['鮮于媗', '中文系', 'low'],
   ['仲長瓊', '哲學系', 'mid'],
-  ['叱羅曦', '美術系', 'high'],
+  ['石曦', '美術系', 'high'],
   ['庾湲', '同班同學', 'low'],
   ['冀嬋', '學餐常見', 'low'],
   ['郗綰', '通識課', 'low'],
-  ['逄婉', '社辦鄰居', 'low'],
+  ['龐婉', '社辦鄰居', 'low'],
   ['禤薇', '系上直屬', 'low'],
-  ['爨玥', '研究所學姊', 'high'],
-  ['夔瑄', '樂團主唱', 'high'],
-  ['佴嫣', '校車同路', 'low'],
-  ['邳姒', '重修班', 'low'],
+  ['段玥', '研究所學姊', 'high'],
+  ['魏瑄', '樂團主唱', 'high'],
+  ['任嫣', '校車同路', 'low'],
+  ['蘇姍', '重修班', 'low'],
   ['蒲媛', '系隊學妹', 'low'],
   ['勾芊', '打工店長', 'mid'],
-  ['邗湄', '隔壁校', 'mid'],
+  ['韓萍', '隔壁校', 'mid'],
   /* ---- 第二批(名冊擴充到 200 位時新增) ---- */
-  ['司空頌', '合唱團伴奏', 'low'],
+  ['司空芸', '合唱團伴奏', 'low'],
   ['太叔姝', '系上總務', 'low'],
   ['申屠妤', '通識同組', 'low'],
-  ['仲孫諳', '英文家教', 'mid'],
+  ['仲孫妍', '英文家教', 'mid'],
   ['梁丘韻', '國樂社二胡', 'mid'],
   ['東郭玟', '書法社', 'low'],
   ['巫馬綺', '手作社', 'low'],
   ['漆雕蕊', '花藝社', 'low'],
-  ['公西荏', '排球隊自由球員', 'mid'],
+  ['公西妤', '排球隊自由球員', 'mid'],
   ['微生檀', '茶道社', 'low'],
   ['羊舌汐', '游泳隊', 'mid'],
   ['北宮泠', '天文社', 'low'],
-  ['左丘澂', '單車社', 'mid'],
+  ['左丘瑩', '單車社', 'mid'],
   ['亢霈', '桌遊社', 'low'],
   ['譙霏', '系隊球僮', 'low'],
   ['歸海皎', '志工隊', 'low'],
@@ -1830,39 +1830,39 @@ const NORMAL_RAW = [
   ['宗政翩', '熱舞社學妹', 'mid'],
   ['濮陽翾', '田徑隊', 'mid'],
   ['淳于蘅', '園藝社', 'low'],
-  ['單于菱', '烘焙社學妹', 'low'],
+  ['于菱', '烘焙社學妹', 'low'],
   ['鮮于蕙', '合作社', 'low'],
   ['仲長蘋', '重修班同學', 'low'],
-  ['叱羅蓁', '研究所學姊', 'high'],
-  ['赫舍苓', '交換生', 'high'],
-  ['乞伏茉', '宿舍樓長', 'low'],
-  ['壤駟荼', '系學會活動組', 'mid'],
+  ['賀蓁', '研究所學姊', 'high'],
+  ['何苓', '交換生', 'high'],
+  ['蔣茉', '宿舍樓長', 'low'],
+  ['尚芬', '系學會活動組', 'mid'],
   ['子車萱', '學餐常見', 'low'],
-  ['夾谷葵', '早八同學', 'low'],
-  ['宰父蓉', '通識分組', 'low'],
+  ['賈葵', '早八同學', 'low'],
+  ['齊蓉', '通識分組', 'low'],
   ['谷梁蕎', '系刊美編', 'mid'],
-  ['亓官芩', '圖書館工讀', 'low'],
+  ['于芩', '圖書館工讀', 'low'],
   ['聞人芷', '醫學系學妹', 'high'],
   ['太史苡', '獸醫系', 'high'],
   ['百里莘', '農化系', 'mid'],
   ['夏侯蕓', '會計系', 'mid'],
   ['皇甫薈', '財金系', 'high'],
-  ['令狐藜', '統計系', 'mid'],
+  ['令狐蔓', '統計系', 'mid'],
   ['公孫蘿', '資管系', 'mid'],
-  ['西門諳', '電機系', 'mid'],
+  ['西門妍', '電機系', 'mid'],
   ['歐陽茉', '機械系學妹', 'low'],
   ['東方玟', '土木系', 'low'],
   ['南宮汐', '化工系', 'mid'],
   ['獨孤韻', '物理系', 'high'],
   ['慕容蕊', '數學系學妹', 'mid'],
-  ['万俟頌', '歷史系', 'low'],
+  ['万俟芸', '歷史系', 'low'],
   ['鍾離姝', '地理系', 'low'],
   ['宇文妤', '社會系', 'mid'],
   ['長孫綺', '新聞社', 'mid'],
   ['閭丘泠', '廣播社', 'mid'],
   ['樂正霈', '吉他社學妹', 'low'],
   ['諸葛皎', '電研社', 'low'],
-  ['上官澂', '登山社學妹', 'mid'],
+  ['上官瑩', '登山社學妹', 'mid'],
 ];
 
 const NORMAL = NORMAL_RAW.map(([name, title, diff], i) => ({
@@ -2741,8 +2741,16 @@ function makeEnding(S) {
  *   { type:'mentor',   session }                            老學長帶浪,只需確認
  *   { type:'exam',     result }                             期末考結果,只需確認
  *   { type:'accident', outcome }                            意外事件,只需確認
+ *   { type:'semesterWrap' }                                 本學期社交結束,只需確認
  *   { type:'gameover', ending }                             結束
- */
+ *
+ * semesterWrap 存在的理由:社交活動用完最後一場場次時,引擎原本會在同一次
+ * submit() 呼叫裡直接往下跑完意外事件判定、期末考,一路跑到下一個真正需要
+ * 玩家操作的關卡為止。畫面把同一次 submit() 新增的紀錄包成一個彈窗顯示,
+ * 結果玩家點最後一場活動時,彈窗標題明明是那場活動,內容卻混進了不相干的
+ * 期末考結果——版面看起來就像「多跑出一個不該出現的步驟」。
+ * 加上這個檢查點,讓活動類動作永遠只產生自己的紀錄,其餘的意外事件與期末考
+ * 都留到玩家按下這裡的確認之後才觸發,各自用原本就有的非彈窗畫面呈現。 */
 
 
 
@@ -2949,7 +2957,7 @@ function createGame({ name, dept, seed }) {
       return;
     }
 
-    if (S.slots <= 0) { step(); return; }
+    if (S.slots <= 0) { pending = { type: 'semesterWrap' }; return; }
 
     pending = {
       type: 'activity',
@@ -2992,7 +3000,7 @@ function createGame({ name, dept, seed }) {
       openActivity();
     } else {
       lastMentor = null;
-      step();
+      pending = { type: 'semesterWrap' };
     }
   }
 
@@ -3071,6 +3079,7 @@ function createGame({ name, dept, seed }) {
       case 'midterm':
       case 'exam':
       case 'accident':
+      case 'semesterWrap':
       case 'mentor': {
         /* 只需確認,沒有選項 */
         if (pending.type === 'mentor') {
@@ -3084,7 +3093,7 @@ function createGame({ name, dept, seed }) {
         /* action: { actId } 或 { mentor: true } 或 { skip: true } */
         if (action.skip) {
           S.slots = 0;
-          step();
+          pending = { type: 'semesterWrap' };
           return;
         }
 
@@ -3556,6 +3565,7 @@ function renderAction() {
     case 'midterm': return renderConfirm('期中考', '知道了，繼續');
     case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
     case 'accident': return renderConfirm('意外事件', '認了，繼續');
+    case 'semesterWrap': return renderConfirm('本學期社交活動結束', '查看期末結果');
     case 'gameover': return renderEnding(p.ending);
     default: return renderConfirm('繼續', '繼續');
   }

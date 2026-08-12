@@ -58,7 +58,7 @@ export const ACTIVITIES = [
     desc: '門口的人上下看了你一眼,然後讓開。',
   },
   {
-    id: 'act_app', name: '校外聯誠/交友軟體', enc: 5,
+    id: 'act_app', name: '校外聯誼/交友軟體', enc: 5,
     req: { skl: 20 }, diff: 'high', risk: 'extreme',
     mentorDept: null,
     desc: '右滑到手指痠,通知一直在跳。',

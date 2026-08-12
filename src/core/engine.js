@@ -12,8 +12,16 @@
  *   { type:'mentor',   session }                            老學長帶浪,只需確認
  *   { type:'exam',     result }                             期末考結果,只需確認
  *   { type:'accident', outcome }                            意外事件,只需確認
+ *   { type:'semesterWrap' }                                 本學期社交結束,只需確認
  *   { type:'gameover', ending }                             結束
- */
+ *
+ * semesterWrap 存在的理由:社交活動用完最後一場場次時,引擎原本會在同一次
+ * submit() 呼叫裡直接往下跑完意外事件判定、期末考,一路跑到下一個真正需要
+ * 玩家操作的關卡為止。畫面把同一次 submit() 新增的紀錄包成一個彈窗顯示,
+ * 結果玩家點最後一場活動時,彈窗標題明明是那場活動,內容卻混進了不相干的
+ * 期末考結果——版面看起來就像「多跑出一個不該出現的步驟」。
+ * 加上這個檢查點,讓活動類動作永遠只產生自己的紀錄,其餘的意外事件與期末考
+ * 都留到玩家按下這裡的確認之後才觸發,各自用原本就有的非彈窗畫面呈現。 */
 
 import { CONFIG, PHASES, SEMESTER_NAMES, gradeOf } from '../data/config.js';
 import { createRng } from '../rng.js';
@@ -220,7 +228,7 @@ export function createGame({ name, dept, seed }) {
       return;
     }
 
-    if (S.slots <= 0) { step(); return; }
+    if (S.slots <= 0) { pending = { type: 'semesterWrap' }; return; }
 
     pending = {
       type: 'activity',
@@ -263,7 +271,7 @@ export function createGame({ name, dept, seed }) {
       openActivity();
     } else {
       lastMentor = null;
-      step();
+      pending = { type: 'semesterWrap' };
     }
   }
 
@@ -342,6 +350,7 @@ export function createGame({ name, dept, seed }) {
       case 'midterm':
       case 'exam':
       case 'accident':
+      case 'semesterWrap':
       case 'mentor': {
         /* 只需確認,沒有選項 */
         if (pending.type === 'mentor') {
@@ -355,7 +364,7 @@ export function createGame({ name, dept, seed }) {
         /* action: { actId } 或 { mentor: true } 或 { skip: true } */
         if (action.skip) {
           S.slots = 0;
-          step();
+          pending = { type: 'semesterWrap' };
           return;
         }
 

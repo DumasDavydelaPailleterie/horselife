@@ -39,6 +39,7 @@ function autoPlay(game, opts = {}) {
       case 'midterm':
       case 'exam':
       case 'accident':
+      case 'semesterWrap':
       case 'mentor':
         game.submit({});
         break;
@@ -384,3 +385,85 @@ describe('引擎:四個學院都能走完流程', () => {
 });
 
 export { autoPlay };
+
+describe('引擎:活動與期末考不會混在同一次結果裡', () => {
+  test('用光最後一場社交場次時,不會在同一次 submit 裡直接跑完意外事件與期末考', () => {
+    /* 迴歸測試:先前 openActivity/afterActivity 在場次用完時會直接呼叫 step(),
+     * 導致同一次 submit() 內部一路跑過意外事件判定、期末考,把不相干的
+     * 期末考紀錄也塞進同一批新增的 log 裡。畫面把同一批 log 包成一個彈窗,
+     * 玩家點最後一場活動,彈窗標題是活動名稱,內容卻混進期末考結果。
+     *
+     * 修法是引入 semesterWrap 檢查點:場次用完時只停在這裡,
+     * 不會再往下跑意外事件或期末考,必須玩家自己確認才繼續。 */
+    const g = createGame({ name: 'A', dept: 'LAW', seed: 'wrap-1' });
+    let steps = 0;
+
+    while (g.pending.type !== 'activity' && steps++ < 2000) {
+      const p = g.pending;
+      if (p.type === 'dice') {
+        g.submit({ assignments: p.dice.map((_, i) => ({ die: i, to: 'str' })) });
+      } else if (p.type === 'event') {
+        g.submit({ response: 'safe' });
+      } else {
+        g.submit({});
+      }
+    }
+
+    /* 把場次耗到剩一場,然後送出最後一個活動,觀察 submit 之後的 pending */
+    while (g.state.slots > 1 && steps++ < 2000) {
+      const p = g.pending;
+      if (p.type !== 'activity') break;
+      const avail = p.list.filter((a) => a.available && a.id !== 'act_club_night' && a.id !== 'act_app');
+      if (avail.length === 0) { g.submit({ skip: true }); break; }
+      g.submit({ actId: avail[0].id });
+      if (g.pending.type === 'special') {
+        g.submit({ go: false });
+      }
+    }
+
+    if (g.pending.type !== 'activity') return; /* 這顆種子提早結束,略過本次驗證 */
+
+    const before = g.state.log.length;
+    const avail = g.pending.list.filter((a) => a.available && a.id !== 'act_club_night' && a.id !== 'act_app');
+    g.submit({ actId: avail[0].id });
+    if (g.pending.type === 'special') g.submit({ go: false });
+
+    assert.equal(g.pending.type, 'semesterWrap',
+      `場次用完後應該停在 semesterWrap,實際是 ${g.pending.type}`);
+
+    const added = g.state.log.slice(before);
+    const titles = added.map((e) => e.title);
+    assert.ok(!titles.includes('期末考') && !titles.some((t) => t.includes('期末考')),
+      `這批新增紀錄不該包含期末考,實際標題:${titles.join('、')}`);
+    assert.ok(!titles.some((t) => t.includes('意外事件')),
+      `這批新增紀錄不該包含意外事件,實際標題:${titles.join('、')}`);
+  });
+
+  test('確認 semesterWrap 之後,期末考才會出現在新的一批紀錄裡', () => {
+    const g = createGame({ name: 'A', dept: 'LAW', seed: 'wrap-2' });
+    let steps = 0;
+    while (g.pending.type !== 'gameover' && steps++ < 3000) {
+      const p = g.pending;
+      if (p.type === 'semesterWrap') break;
+      if (p.type === 'dice') {
+        g.submit({ assignments: p.dice.map((_, i) => ({ die: i, to: 'str' })) });
+      } else if (p.type === 'event') {
+        g.submit({ response: 'safe' });
+      } else if (p.type === 'special') {
+        g.submit({ go: false });
+      } else if (p.type === 'activity') {
+        const avail = p.list.filter((a) => a.available);
+        if (avail.length === 0) { g.submit({ skip: true }); continue; }
+        g.submit({ actId: avail[avail.length - 1].id });
+      } else {
+        g.submit({});
+      }
+    }
+    if (g.pending.type !== 'semesterWrap') return;
+
+    const before = g.state.log.length;
+    g.submit({});
+    const added = g.state.log.slice(before);
+    assert.ok(added.length > 0, 'semesterWrap 確認後應該至少有一則新紀錄(意外事件判定或期末考)');
+  });
+});

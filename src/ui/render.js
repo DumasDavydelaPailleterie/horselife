@@ -318,6 +318,7 @@ function renderAction() {
     case 'midterm': return renderConfirm('期中考', '知道了，繼續');
     case 'exam': return renderConfirm('期末考', p.result.passed ? '過關，繼續' : '繼續');
     case 'accident': return renderConfirm('意外事件', '認了，繼續');
+    case 'semesterWrap': return renderConfirm('本學期社交活動結束', '查看期末結果');
     case 'gameover': return renderEnding(p.ending);
     default: return renderConfirm('繼續', '繼續');
   }
